@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.LinearLayout">
+
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.DoorbellIntercom.SettingsCard">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <EditText
+                android:id="@+id/editCameraHost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_camera_host"
+                android:inputType="textUri" />
+
+            <EditText
+                android:id="@+id/editCameraBcPort"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_camera_bc_port"
+                android:inputType="number" />
+
+            <EditText
+                android:id="@+id/editCameraUser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_camera_user"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editCameraPass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_camera_pass"
+                android:inputType="textPassword" />
+
+            <EditText
+                android:id="@+id/editCameraRtspPath"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_camera_rtsp_path"
+                android:inputType="text" />
+
+            <CheckBox
+                android:id="@+id/checkKeepAspectRatio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/check_keep_aspect_ratio" />
+
+            <TextView
+                android:id="@+id/textMicGain"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/sliderMicGain"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stepSize="100"
+                android:valueFrom="100"
+                android:valueTo="2000"
+                app:labelBehavior="gone" />
+
+            <TextView
+                android:id="@+id/textVideoStartBuffer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/sliderVideoStartBuffer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stepSize="50"
+                android:valueFrom="50"
+                android:valueTo="1000"
+                app:labelBehavior="gone" />
+
+            <TextView
+                android:id="@+id/textVideoRebuffer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/sliderVideoRebuffer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stepSize="100"
+                android:valueFrom="100"
+                android:valueTo="2000"
+                app:labelBehavior="gone" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</merge>

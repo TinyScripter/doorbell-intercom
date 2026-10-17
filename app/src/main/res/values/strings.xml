@@ -1,0 +1,146 @@
+<resources>
+    <!-- Standardsprache (Englisch): Fallback für alle Systemsprachen ohne eigene
+         Übersetzung. Weitere Sprachen als values-<sprache>/strings.xml anlegen. -->
+    <string name="app_name">Doorbell Intercom</string>
+
+    <string name="menu_settings">Settings</string>
+    <string name="toolbar_settings_title">Settings</string>
+
+    <string name="status_camera_not_configured">Camera credentials missing – please enter them in the settings</string>
+    <string name="status_mic_permission_needed">Microphone permission required</string>
+    <string name="status_connecting">Connecting …</string>
+    <string name="status_connected">Connected</string>
+    <string name="toast_settings_saved">Settings saved</string>
+    <string name="status_rtsp_error">RTSP error: %1$s – %2$s</string>
+
+    <string name="btn_talk_start">Talk</string>
+    <string name="btn_talk_stop">Mute</string>
+    <string name="btn_door_open">Open door</string>
+
+    <string name="status_talk_active">Talk connection active</string>
+    <string name="status_talk_failed">Intercom failed: %1$s</string>
+    <string name="status_talk_auth_failed">Intercom failed: camera rejected the credentials (check username/password)</string>
+
+    <string name="status_door_opening">Opening door …</string>
+    <string name="status_door_open_not_configured">Door webhook URL missing – please enter it in the settings</string>
+    <string name="status_door_opened">Door opened</string>
+    <string name="status_door_open_http_error">Error opening door: HTTP %1$d</string>
+    <string name="status_door_open_failed">Opening door failed: %1$s</string>
+
+    <string name="section_mqtt">MQTT</string>
+    <string name="section_mqtt_summary">Emergency path: only active when the Wi-Fi has no internet</string>
+    <string name="switch_mqtt_fallback">MQTT fallback during internet outage (background service with persistent notification)</string>
+    <string name="hint_mqtt_host">MQTT broker address (e.g. 192.168.0.10)</string>
+    <string name="hint_mqtt_port">Port (default: 1883)</string>
+    <string name="hint_mqtt_user">Username (optional)</string>
+    <string name="hint_mqtt_pass">Password (optional)</string>
+    <string name="hint_mqtt_topic">Topic (e.g. doorbell/ring)</string>
+
+    <string name="section_camera">Camera</string>
+    <string name="hint_camera_host">Camera IP address (e.g. 192.168.0.111)</string>
+    <string name="hint_camera_bc_port">Baichuan port for intercom (default: 9000)</string>
+    <string name="hint_camera_user">Camera username (e.g. admin)</string>
+    <string name="hint_camera_pass">Camera password</string>
+    <string name="hint_camera_rtsp_path">RTSP path for video (default: h264Preview_01_main)</string>
+    <string name="check_keep_aspect_ratio">Keep aspect ratio (no distortion)</string>
+    <string name="label_mic_gain">Microphone volume while talking: %1$d %%</string>
+    <string name="label_video_start_buffer">Video buffer at start: %1$d ms (lower = less delay)</string>
+    <string name="label_video_rebuffer">Video buffer after dropout: %1$d ms</string>
+
+    <string name="section_ringing">Doorbell</string>
+    <string name="section_ringing_summary">Ring duration, ringtone</string>
+    <string name="section_camera_summary">Address, login, video and microphone</string>
+    <string name="section_push_settings">Push settings</string>
+    <string name="section_push_settings_summary">UnifiedPush, MQTT, notification when another phone answers</string>
+    <string name="section_notifications">Notifications</string>
+    <string name="section_connections">More connections</string>
+    <string name="section_connections_summary">Door opener, VPN</string>
+    <string name="section_about">About / Licenses</string>
+    <string name="section_about_summary">License and third-party notices</string>
+    <string name="label_ring_duration">Ring duration: %1$d s</string>
+    <string name="label_ringtone">Ringtone: %1$s</string>
+    <string name="btn_choose_ringtone">Choose ringtone</string>
+    <string name="switch_ring_in_silent_mode">Ring even when the phone is on silent or vibrate (uses the alarm volume)</string>
+    <string name="check_notify_answered_elsewhere">Notify when another phone answers</string>
+    <string name="answered_elsewhere_title">Doorbell answered by: %1$s</string>
+    <string name="section_door">Door opener</string>
+    <string name="hint_door_open_url">Webhook URL (HTTP POST, e.g. https://.../api/webhook/…)</string>
+
+    <string name="section_push">Push (UnifiedPush)</string>
+    <string name="section_push_summary">Main path for ringing. Requires a push distributor, e.g. the ntfy app.</string>
+    <string name="hint_registration_url">Registration URL (AppDaemon endpoint, optional)</string>
+    <string name="error_no_push_endpoint">No push endpoint received from the push distributor yet</string>
+    <string name="status_push_setting_up">Setting up push service – then tap \"Register now\" again</string>
+    <string name="status_no_push_distributor">No push distributor found – please install the ntfy app</string>
+    <string name="hint_device_name">Device name in Home Assistant</string>
+    <string name="btn_register_device">Register now</string>
+    <string name="btn_unregister_device">Unregister</string>
+    <string name="status_register_url_missing">Please enter the registration URL first</string>
+    <string name="status_register_device_blank">Please enter a device name</string>
+    <string name="status_device_registered">Registered with Home Assistant (HTTP %1$d)</string>
+    <string name="status_device_register_failed">Registration failed: %1$s</string>
+    <string name="status_device_unregistered">Device unregistered from Home Assistant – it will register again on the next app start as long as a registration URL is set</string>
+    <string name="status_device_unregister_failed">Unregistering failed: %1$s</string>
+    <string name="error_http_code">HTTP %1$d</string>
+
+    <string name="section_vpn">VPN (WireGuard)</string>
+    <string name="section_vpn_summary">For ringing outside your Wi-Fi: brings the tunnel up when the doorbell rings and down again on hang-up. \"Allow remote control apps\" must be enabled in the WireGuard app.</string>
+    <string name="switch_wireguard_auto_vpn">Connect VPN automatically when the doorbell rings</string>
+    <string name="hint_wireguard_tunnel">Tunnel name in the WireGuard app</string>
+    <string name="switch_silent_when_unreachable">Only a silent notice when away from home without VPN set up (camera not reachable)</string>
+    <string name="channel_not_reachable">Doorbell (camera not reachable)</string>
+    <string name="not_reachable_title">Doorbell rang – you are not on the home network</string>
+    <string name="status_vpn_permission_granted">VPN control allowed</string>
+    <string name="status_vpn_permission_denied">VPN control not allowed – is WireGuard installed?</string>
+    <string name="status_vpn_connecting">Connecting VPN …</string>
+
+    <string name="section_backup">Backup</string>
+    <string name="section_backup_summary">Exports the last saved state as a JSON file. The file contains passwords in plain text.</string>
+    <string name="btn_export_settings">Export</string>
+    <string name="btn_import_settings">Import</string>
+    <string name="btn_show_qr">Show QR code</string>
+    <string name="btn_scan_qr">Scan QR code</string>
+    <string name="title_qr_dialog">Settings as QR code</string>
+    <string name="message_qr_dialog">Scan this code with the app on another device. It contains all passwords in plain text – show it only to people you trust.</string>
+    <string name="btn_close">Close</string>
+    <string name="title_qr_import_confirm">Import settings?</string>
+    <string name="message_qr_import_confirm">The current settings of this device will be replaced.</string>
+    <string name="btn_import_confirm">Import</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="status_qr_failed">QR code could not be created or scanned</string>
+    <string name="status_settings_exported">Settings exported</string>
+    <string name="status_settings_export_failed">Export failed</string>
+    <string name="status_settings_imported">Settings imported and applied</string>
+    <string name="status_settings_import_failed">Import failed – not a valid settings file</string>
+
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license">This app is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3 (GPLv3), published by the Free Software Foundation. It comes without any warranty.\n\nhttps://www.gnu.org/licenses/gpl-3.0.html</string>
+    <string name="about_third_party_title">Third-party components</string>
+    <string name="about_reolink_aio">The Reolink Baichuan protocol used for the intercom (login, encryption, talk session, audio framing) is ported from reolink_aio by starkillerOG (MIT License):\nhttps://github.com/starkillerOG/reolink_aio\n\nThis app is not affiliated with Reolink.</string>
+    <string name="about_libraries_title">Libraries</string>
+    <string name="about_libraries">This app uses the following libraries under the Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):\n\n• AndroidX (core, appcompat, constraintlayout)\n• Material Components for Android\n• AndroidX Media3\n• HiveMQ MQTT Client\n• UnifiedPush Android connector\n• kotlinx.coroutines\n• ZXing core</string>
+    <string name="about_feather_icons">The phone handset icon is based on Feather Icons (MIT License):\nhttps://github.com/feathericons/feather</string>
+    <string name="about_mit_license_text" translatable="false">reolink_aio – MIT License\n\nCopyright (c) 2023 starkillerOG\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
+    <string name="incoming_call_title">Someone is at the door</string>
+    <string name="btn_accept">Accept</string>
+    <string name="btn_decline">Decline</string>
+    <string name="btn_hang_up">Hang up</string>
+    <string name="btn_door_open_and_hang_up">Open door and hang up</string>
+    <string name="status_unlock_cancelled">Unlock cancelled – tap again to accept</string>
+
+    <string name="channel_service_status">Service status</string>
+    <string name="channel_incoming_call">Incoming doorbell call</string>
+    <string name="channel_answered_elsewhere">Doorbell answered</string>
+
+    <string name="service_notification_title">Doorbell Intercom active</string>
+    <string name="service_checking_network">Checking network …</string>
+    <string name="service_standby_push">Standby – ringing arrives via push, MQTT paused</string>
+    <string name="service_mqtt_not_configured">No MQTT address configured – please enter it in the app</string>
+    <string name="service_reason_offline_wifi">Wi-Fi without internet</string>
+    <string name="service_mqtt_connecting">connecting to MQTT broker …</string>
+    <string name="service_mqtt_connected">connected, waiting for doorbell event</string>
+    <string name="service_mqtt_disconnected">connection lost – retrying …</string>
+    <string name="service_mqtt_failed_retry">connection failed: %1$s – retrying in 10 s</string>
+    <string name="service_mqtt_gave_up">MQTT gave up: %1$s – will retry on network change or app start</string>
+    <string name="service_mqtt_subscribe_failed">subscription failed: %1$s</string>
+</resources>

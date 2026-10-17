@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_libraries_variant">QR-Codes werden mit dem ML Kit Code Scanner der Google Play Services gelesen. Er ist proprietäre Software, nicht Teil dieser App und unterliegt den Bedingungen von Google.</string>
+</resources>

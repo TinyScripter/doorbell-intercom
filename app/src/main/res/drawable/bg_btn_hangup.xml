@@ -1,0 +1,12 @@
+<!-- Runder roter Button: Ablehnen/Auflegen -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#40FFFFFF">
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:angle="315"
+                android:endColor="#DC2626"
+                android:startColor="#FF6B5E" />
+        </shape>
+    </item>
+</ripple>

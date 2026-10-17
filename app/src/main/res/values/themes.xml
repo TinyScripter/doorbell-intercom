@@ -1,0 +1,38 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.DoorbellIntercom" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/doorbell_primary</item>
+        <item name="colorPrimaryDark">@color/doorbell_primary_dark</item>
+        <item name="colorAccent">@color/doorbell_accent</item>
+    </style>
+
+    <style name="Theme.DoorbellIntercom.FullScreen" parent="Theme.DoorbellIntercom">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
+    <!-- Einstellungen: eine Karte pro Kategorie -->
+    <style name="Widget.DoorbellIntercom.SettingsCard" parent="Widget.MaterialComponents.CardView">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginBottom">16dp</item>
+        <item name="cardCornerRadius">12dp</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+
+    <style name="TextAppearance.DoorbellIntercom.SettingsSection" parent="">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <!-- Runde Icon-Buttons (Annehmen, Sprechen, Tür öffnen, …) über dem Video.
+         Die farbige Fläche (bg_btn_*) setzt jeder Button selbst. -->
+    <style name="Widget.DoorbellIntercom.IconButton" parent="">
+        <item name="android:layout_width">88dp</item>
+        <item name="android:layout_height">88dp</item>
+        <item name="android:padding">17dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:elevation">6dp</item>
+    </style>
+</resources>

@@ -1,0 +1,14 @@
+<!-- Tür (dunkel, für den gelben Button): Tür öffnen -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#1B1406"
+        android:fillType="evenOdd"
+        android:pathData="M9,2.5h6A2.5,2.5 0,0 1,17.5 5v14h-11V5A2.5,2.5 0,0 1,9 2.5zM14.25,10.75a1.25,1.25 0,1 0,0 2.5a1.25,1.25 0,0 0,0 -2.5z" />
+    <path
+        android:fillColor="#1B1406"
+        android:pathData="M4.625,19.25h14.75a1.125,1.125 0,0 1,0 2.25H4.625a1.125,1.125 0,0 1,0 -2.25z" />
+</vector>

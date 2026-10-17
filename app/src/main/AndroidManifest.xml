@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- INTERNET wird von Android für jede Socket-Verbindung verlangt,
+         auch wenn Ziel-IP/Port rein im LAN liegen (kein Internetzugriff
+         im eigentlichen Sinn). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Steuert den WireGuard-Tunnel beim Klingeln (Berechtigung der WireGuard-App). -->
+    <uses-permission android:name="com.wireguard.android.permission.CONTROL_TUNNELS" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.DoorbellIntercom">
+
+        <!-- Hochformat auf Handys. Ab Android 16 (targetSdk 36) ignoriert das
+             System die feste Ausrichtung auf großen Bildschirmen (Tablets,
+             Foldables). Damit ein Drehen dort nicht Video- und Sprechverbindung
+             neu aufbaut, behandeln Haupt- und Klingelbildschirm diese
+             configChanges selbst, statt neu erzeugt zu werden. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- Unterseiten der Einstellungen; der Zurück-Pfeil führt zur Hauptseite. -->
+        <activity
+            android:name=".CameraSettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".SettingsActivity" />
+        <activity
+            android:name=".RingingSettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".SettingsActivity" />
+        <activity
+            android:name=".PushSettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".SettingsActivity" />
+        <activity
+            android:name=".ConnectionsSettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".SettingsActivity" />
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".SettingsActivity" />
+
+        <!-- Eigene Task (leere taskAffinity): beim Auflegen/Ablehnen soll
+             wieder erscheinen, was vor dem Klingeln zu sehen war, und nicht
+             der Hauptbildschirm der App aus deren Task darunter. -->
+        <activity
+            android:name=".IncomingCallActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:theme="@style/Theme.DoorbellIntercom.FullScreen" />
+
+        <!-- specialUse statt dataSync: dataSync ist ab targetSdk 35 auf 6 h pro
+             24 h begrenzt und darf nicht aus BOOT_COMPLETED gestartet werden –
+             beides passt nicht zu einer dauerhaft offenen MQTT-Verbindung. -->
+        <service
+            android:name=".DoorbellForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Überwacht das WLAN und hält bei Internetausfall eine MQTT-Verbindung zum lokalen Broker offen, um Klingel-Ereignisse der Türsprechanlage ohne Internet sofort als Anruf anzuzeigen." />
+        </service>
+
+        <service
+            android:name=".DoorbellPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Buttons und Wegwischen der Klingel-Benachrichtigung. -->
+        <receiver
+            android:name=".CallActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>

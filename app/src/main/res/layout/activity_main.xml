@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/videoView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:use_controller="false"
+        app:surface_type="texture_view"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Das Statusleisten-Inset wird auf diesen Container angewendet, nicht
+         auf die Toolbar selbst: bei fester Toolbar-Höhe würde das zusätzliche
+         Padding Titel und Menü-Icon (3 Punkte) abschneiden. -->
+    <FrameLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#66000000"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/transparent"
+            android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.MaterialComponents.Light"
+            app:title="@string/app_name"
+            app:titleTextColor="#FFFFFF" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        app:layout_constraintTop_toBottomOf="@id/topBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Mikrofon-Status mittig direkt über den Buttons; der Schatten hält den
+         Text auch lesbar, wenn er über hellem Videobild liegt. -->
+    <TextView
+        android:id="@+id/talkStatusText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:shadowColor="#000000"
+        android:shadowRadius="4"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="24dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnTalk"
+            style="@style/Widget.DoorbellIntercom.IconButton"
+            android:layout_marginEnd="32dp"
+            android:background="@drawable/bg_btn_mic_off"
+            android:contentDescription="@string/btn_talk_start"
+            android:src="@drawable/ic_mic_off" />
+
+        <ImageButton
+            android:id="@+id/btnDoorOpen"
+            style="@style/Widget.DoorbellIntercom.IconButton"
+            android:background="@drawable/bg_btn_door"
+            android:contentDescription="@string/btn_door_open"
+            android:src="@drawable/ic_door" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

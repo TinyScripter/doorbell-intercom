@@ -1,0 +1,12 @@
+<!-- Runder gelber Button: Tür öffnen -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33000000">
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:angle="315"
+                android:endColor="#F59E0B"
+                android:startColor="#FFD45C" />
+        </shape>
+    </item>
+</ripple>

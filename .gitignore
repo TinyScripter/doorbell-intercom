@@ -1,0 +1,57 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Lokale Konfiguration
+local.properties
+*.properties.local
+
+# IDE
+*.iml
+/.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Claude Code (lokale Einstellungen)
+.claude/
+
+# Native Build
+.externalNativeBuild/
+.cxx/
+
+# Android Studio / Profiler
+/captures/
+*.hprof
+
+# Build-Artefakte / Releases
+*.apk
+*.aab
+*.ap_
+*.dex
+app/release/
+app/debug/
+app/play/
+output-metadata.json
+
+# Signing / Secrets
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+google-services.json
+service-account*.json
+*.pem
+.env
+.env.*
+
+# Logs
+*.log
+
+# Python (tools/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/

@@ -1,0 +1,9 @@
+<!-- Runder heller Button: Mikro ist an -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33000000">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#F4F5F7" />
+        </shape>
+    </item>
+</ripple>

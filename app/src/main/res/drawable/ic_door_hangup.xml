@@ -1,0 +1,81 @@
+<!-- Kombi-Button (inkl. Hintergrund): diagonal geteilt. Oben links gelb mit Tür = Tür öffnen, unten rechts rot mit Hörer = Auflegen. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="88dp"
+    android:height="88dp"
+    android:viewportWidth="88"
+    android:viewportHeight="88">
+
+    <!-- Oben links: Tür öffnen -->
+    <group>
+        <clip-path android:pathData="M0,0H88L0,88Z" />
+        <path android:pathData="M44,44m-44,0a44,44 0,1 1,88 0a44,44 0,1 1,-88 0">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="0"
+                    android:startY="0"
+                    android:endX="88"
+                    android:endY="88"
+                    android:startColor="#FFD45C"
+                    android:endColor="#F59E0B"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+        <group
+            android:scaleX="1.5"
+            android:scaleY="1.5"
+            android:translateX="9"
+            android:translateY="9">
+            <path
+                android:fillColor="#1B1406"
+                android:fillType="evenOdd"
+                android:pathData="M9,2.5h6A2.5,2.5 0,0 1,17.5 5v14h-11V5A2.5,2.5 0,0 1,9 2.5zM14.25,10.75a1.25,1.25 0,1 0,0 2.5a1.25,1.25 0,0 0,0 -2.5z" />
+            <path
+                android:fillColor="#1B1406"
+                android:pathData="M4.625,19.25h14.75a1.125,1.125 0,0 1,0 2.25H4.625a1.125,1.125 0,0 1,0 -2.25z" />
+        </group>
+    </group>
+
+    <!-- Unten rechts: Auflegen -->
+    <group>
+        <clip-path android:pathData="M88,0V88H0Z" />
+        <path android:pathData="M44,44m-44,0a44,44 0,1 1,88 0a44,44 0,1 1,-88 0">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="0"
+                    android:startY="0"
+                    android:endX="88"
+                    android:endY="88"
+                    android:startColor="#FF6B5E"
+                    android:endColor="#DC2626"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+        <group
+            android:scaleX="1.3"
+            android:scaleY="1.3"
+            android:translateX="44.4"
+            android:translateY="42.4">
+            <group
+                android:pivotX="12"
+                android:pivotY="12"
+                android:rotation="135"
+                android:scaleX="0.86"
+                android:scaleY="0.86"
+                android:translateY="2">
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M22,16.92v3a2,2 0,0 1,-2.18 2a19.79,19.79 0,0 1,-8.63 -3.07a19.5,19.5 0,0 1,-6 -6a19.79,19.79 0,0 1,-3.07 -8.67A2,2 0,0 1,4.11 2h3a2,2 0,0 1,2 1.72a12.84,12.84 0,0 0,0.7 2.81a2,2 0,0 1,-0.45 2.11L8.09,9.91a16,16 0,0 0,6 6l1.27,-1.27a2,2 0,0 1,2.11 -0.45a12.84,12.84 0,0 0,2.81 0.7A2,2 0,0 1,22 16.92z"
+                    android:strokeColor="#FFFFFF"
+                    android:strokeLineJoin="round"
+                    android:strokeWidth="1.2" />
+            </group>
+        </group>
+    </group>
+
+    <!-- Diagonale Trennlinie -->
+    <path
+        android:pathData="M75.1,12.9L12.9,75.1"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" />
+</vector>

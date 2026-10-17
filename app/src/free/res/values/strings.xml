@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_libraries_variant">QR codes are scanned with ZXing Android Embedded (Apache License 2.0).</string>
+</resources>

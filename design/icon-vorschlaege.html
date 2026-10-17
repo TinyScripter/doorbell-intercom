@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>DoorbellIntercom – Icon-Vorschläge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Drei Designvorschläge für die Steuer-Icons (Tür, Mikrofon, Telefonhörer).
+  Alle Glyphen liegen auf einem 24×24-Raster und lassen sich 1:1 in
+  Android-VectorDrawables übertragen (strokeWidth/strokeLineCap/strokeLineJoin,
+  fillAlpha und <group android:rotation> werden dort unterstützt).
+  Der Telefonhörer basiert auf Feather Icons (MIT-Lizenz).
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px 64px;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0e0f12; color: #e8e9ec;
+  }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .lead { color: #9aa0aa; margin: 0 0 32px; max-width: 760px; }
+  section {
+    background: #16181d; border: 1px solid #23262d; border-radius: 20px;
+    padding: 24px; margin-bottom: 28px;
+  }
+  section h2 { margin: 0; font-size: 20px; }
+  section .desc { color: #9aa0aa; margin: 4px 0 20px; max-width: 760px; }
+  .row { display: flex; flex-wrap: wrap; gap: 36px; align-items: flex-start; }
+
+  /* Icon-Raster */
+  .grid { display: grid; grid-template-columns: repeat(5, 92px); gap: 18px 10px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .cell span { font-size: 12px; color: #9aa0aa; text-align: center; }
+
+  /* Mock: Livebild mit Bedienleiste */
+  .phone {
+    width: 260px; height: 420px; border-radius: 28px; overflow: hidden; position: relative;
+    border: 6px solid #2a2d34;
+    background:
+      radial-gradient(120px 160px at 50% 42%, rgba(255,255,255,.10), transparent 70%),
+      linear-gradient(180deg, #3b4350 0%, #2a3038 45%, #1a1d22 100%);
+  }
+  .phone .label {
+    position: absolute; top: 14px; left: 0; right: 0; text-align: center;
+    font-size: 12px; color: rgba(255,255,255,.7); letter-spacing: .04em;
+  }
+  .phone .person {
+    position: absolute; left: 50%; top: 110px; transform: translateX(-50%);
+    width: 90px; height: 150px; border-radius: 45px 45px 20px 20px;
+    background: rgba(0,0,0,.25);
+  }
+  .phone .bar {
+    position: absolute; left: 0; right: 0; bottom: 22px;
+    display: flex; justify-content: space-evenly; align-items: center;
+  }
+
+  /* Gemeinsame Button-Basis */
+  .btn {
+    width: 60px; height: 60px; border-radius: 50%;
+    display: grid; place-items: center; position: relative;
+  }
+  .btn svg { width: 28px; height: 28px; overflow: visible; }
+
+  /* ---------- Variante A: Klar & Linear ---------- */
+  .a .btn {
+    background: rgba(18,19,22,.55);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.16);
+    color: #fff;
+  }
+  .a svg { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .a .accept { color: #34C759; border-color: rgba(52,199,89,.55); }
+  .a .hangup { color: #FF453A; border-color: rgba(255,69,58,.55); }
+  .a .door   { color: #FFD60A; border-color: rgba(255,214,10,.55); }
+  .a .micoff { color: rgba(255,255,255,.55); --slash: #FF453A; }
+
+  /* ---------- Variante B: Satte Flächen ---------- */
+  .b .btn { box-shadow: 0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25); }
+  .b svg { fill: currentColor; stroke: none; }
+  .b .btn svg { width: 36px; height: 36px; }
+  .b .accept { background: linear-gradient(160deg, #4ADE80, #16A34A); color: #fff; }
+  .b .hangup { background: linear-gradient(160deg, #FF6B5E, #DC2626); color: #fff; }
+  .b .door   { background: linear-gradient(160deg, #FFD45C, #F59E0B); color: #1B1406; }
+  .b .micon  { background: #F4F5F7; color: #111317; --cut: #F4F5F7; }
+  .b .micoff { background: rgba(40,42,48,.85); color: #fff; --cut: rgb(40,42,48); }
+
+  /* ---------- Variante C: Duotone Glow ---------- */
+  .c .btn {
+    background: radial-gradient(circle at 50% 35%, rgba(255,255,255,.08), rgba(14,15,18,.75) 70%);
+    border: 1.5px solid color-mix(in srgb, var(--ac) 55%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--ac) 35%, transparent),
+                inset 0 0 14px color-mix(in srgb, var(--ac) 18%, transparent);
+    color: var(--ac);
+  }
+  .c svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .c .accept { --ac: #5EE6A8; }
+  .c .hangup { --ac: #FF7A7A; }
+  .c .door   { --ac: #FFC857; }
+  .c .micon  { --ac: #7DD3FC; }
+  .c .micoff { --ac: #8B93A1; --slash: #FF7A7A; }
+
+  .notes { color: #9aa0aa; font-size: 13px; margin-top: 18px; }
+  .notes b { color: #e8e9ec; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ===================== Glyphen (24×24) ===================== -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- Feather-Telefonhörer (MIT) -->
+    <path id="handset" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+  </defs>
+
+  <!-- A: linear -->
+  <symbol id="a-door" viewBox="0 0 24 24">
+    <path d="M13 4h4.5A1.5 1.5 0 0 1 19 5.5V21"/>
+    <path d="M13 21 6 20V5.6a1 1 0 0 1 .78-.98l5-1.11A1 1 0 0 1 13 4.49z"/>
+    <path d="M3 21h3M13 21h8"/>
+    <path d="M10.3 12.5v.01" stroke-width="2.4"/>
+  </symbol>
+  <symbol id="a-mic" viewBox="0 0 24 24">
+    <rect x="9" y="2.5" width="6" height="11.5" rx="3"/>
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/>
+  </symbol>
+  <symbol id="a-micoff" viewBox="0 0 24 24">
+    <rect x="9" y="2.5" width="6" height="11.5" rx="3"/>
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/>
+    <path style="stroke: var(--slash, currentColor)" d="M4 4l16 16"/>
+  </symbol>
+  <symbol id="a-call" viewBox="0 0 24 24">
+    <use href="#handset" transform="translate(12 12) scale(.88) translate(-12 -12)"/>
+  </symbol>
+  <symbol id="a-end" viewBox="0 0 24 24">
+    <use href="#handset" transform="translate(12 14) rotate(135) scale(.86) translate(-12 -12)"/>
+  </symbol>
+
+  <!-- B: solide Flächen -->
+  <symbol id="b-door" viewBox="0 0 24 24">
+    <path fill-rule="evenodd" d="M9 2.5h6A2.5 2.5 0 0 1 17.5 5v14h-11V5A2.5 2.5 0 0 1 9 2.5zM14.25 10.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z"/>
+    <rect x="3.5" y="19.25" width="17" height="2.25" rx="1.125"/>
+  </symbol>
+  <symbol id="b-mic" viewBox="0 0 24 24">
+    <rect x="8.5" y="2" width="7" height="12.5" rx="3.5"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5 11.5a7 7 0 0 0 14 0M12 18.5v3"/>
+  </symbol>
+  <symbol id="b-micoff" viewBox="0 0 24 24">
+    <rect x="8.5" y="2" width="7" height="12.5" rx="3.5"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5 11.5a7 7 0 0 0 14 0M12 18.5v3"/>
+    <path fill="none" style="stroke: var(--cut)" stroke-width="4.5" stroke-linecap="round" d="M4 4l16 16"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 4l16 16"/>
+  </symbol>
+  <symbol id="b-call" viewBox="0 0 24 24">
+    <use href="#handset" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" transform="translate(12 12) scale(.86) translate(-12 -12)"/>
+  </symbol>
+  <symbol id="b-end" viewBox="0 0 24 24">
+    <use href="#handset" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" transform="translate(12 14) rotate(135) scale(.86) translate(-12 -12)"/>
+  </symbol>
+
+  <!-- C: Duotone -->
+  <symbol id="c-door" viewBox="0 0 24 24">
+    <rect fill="currentColor" fill-opacity=".32" stroke="none" x="13" y="4" width="6" height="17"/>
+    <path d="M13 4h4.5A1.5 1.5 0 0 1 19 5.5V21"/>
+    <path d="M13 21 6 20V5.6a1 1 0 0 1 .78-.98l5-1.11A1 1 0 0 1 13 4.49z"/>
+    <path d="M3 21h3M13 21h8"/>
+    <path d="M10.3 12.5v.01" stroke-width="2.2"/>
+  </symbol>
+  <symbol id="c-mic" viewBox="0 0 24 24">
+    <rect fill="currentColor" fill-opacity=".32" stroke="none" x="9" y="2.5" width="6" height="11.5" rx="3"/>
+    <rect x="9" y="2.5" width="6" height="11.5" rx="3"/>
+    <path d="M12.5 6.5h2.5M12.5 9.5h2.5" stroke-width="1.3"/>
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/>
+  </symbol>
+  <symbol id="c-micoff" viewBox="0 0 24 24">
+    <rect fill="currentColor" fill-opacity=".32" stroke="none" x="9" y="2.5" width="6" height="11.5" rx="3"/>
+    <rect x="9" y="2.5" width="6" height="11.5" rx="3"/>
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/>
+    <path style="stroke: var(--slash, currentColor)" d="M4 4l16 16"/>
+  </symbol>
+  <symbol id="c-call" viewBox="0 0 24 24">
+    <g transform="translate(-1 1) translate(12 12) scale(.82) translate(-12 -12)">
+      <use fill="currentColor" fill-opacity=".32" stroke="none" href="#handset"/>
+      <use href="#handset"/>
+    </g>
+    <path d="M15 2.5a6.5 6.5 0 0 1 6.5 6.5M15 6a3 3 0 0 1 3 3"/>
+  </symbol>
+  <symbol id="c-end" viewBox="0 0 24 24">
+    <g transform="translate(12 14) rotate(135) scale(.86) translate(-12 -12)">
+      <use fill="currentColor" fill-opacity=".32" stroke="none" href="#handset"/>
+      <use href="#handset"/>
+    </g>
+  </symbol>
+</svg>
+
+<h1>Icon-Vorschläge für Tür, Mikrofon &amp; Telefonhörer</h1>
+<p class="lead">
+  Drei Richtungen zur Ablösung der bisherigen Material-Icons (<code>ic_door_yellow</code>,
+  <code>ic_mic_green</code>/<code>ic_mic_off_red</code>, <code>ic_call_green</code>/<code>ic_call_end_red</code>).
+  Jede Variante zeigt die einzelnen Zustände sowie eine Vorschau über dem Kamera-Livebild.
+  In der App ist noch nichts ersetzt.
+</p>
+
+<!-- ===================== Variante A ===================== -->
+<section class="a">
+  <h2>A · Klar &amp; Linear</h2>
+  <p class="desc">
+    Feine, abgerundete Konturen (1,75 px) im Stil aktueller iOS-/Lucide-Icons. Die Glyphen bleiben weiß bzw.
+    werden nur dezent eingefärbt; die Bedeutung trägt ein farbiger Ring. Ruhig und elegant, das Livebild
+    bleibt im Vordergrund. Die Tür ist <em>geöffnet</em> dargestellt – sie zeigt also, was die Taste bewirkt.
+  </p>
+  <div class="row">
+    <div class="grid">
+      <div class="cell"><div class="btn door"><svg><use href="#a-door"/></svg></div><span>Tür öffnen</span></div>
+      <div class="cell"><div class="btn micon"><svg><use href="#a-mic"/></svg></div><span>Mikro an</span></div>
+      <div class="cell"><div class="btn micoff"><svg><use href="#a-micoff"/></svg></div><span>Mikro aus</span></div>
+      <div class="cell"><div class="btn accept"><svg><use href="#a-call"/></svg></div><span>Annehmen</span></div>
+      <div class="cell"><div class="btn hangup"><svg><use href="#a-end"/></svg></div><span>Auflegen</span></div>
+    </div>
+    <div class="phone">
+      <div class="label">HAUSTÜR · LIVE</div><div class="person"></div>
+      <div class="bar">
+        <div class="btn micon"><svg><use href="#a-mic"/></svg></div>
+        <div class="btn door"><svg><use href="#a-door"/></svg></div>
+        <div class="btn hangup"><svg><use href="#a-end"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <p class="notes"><b>Umsetzung:</b> reine Stroke-Pfade, Farbe per <code>android:tint</code> pro Zustand – ein Drawable pro Symbol statt je eines pro Farbe. Button-Hintergrund wie bisher <code>bg_icon_button</code>, nur Ring-Farbe variabel.</p>
+</section>
+
+<!-- ===================== Variante B ===================== -->
+<section class="b">
+  <h2>B · Satte Flächen</h2>
+  <p class="desc">
+    Gefüllte, rundliche Glyphen auf vollflächig farbigen Buttons mit leichtem Verlauf und Schatten – wie die
+    Anrufoberfläche moderner Smartphones. Sehr gut erkennbar, auch mit einem Blick oder bei hellem Livebild.
+    Das Mikrofon ist ein Umschalter: hell = aktiv, dunkel mit Strich = stumm.
+  </p>
+  <div class="row">
+    <div class="grid">
+      <div class="cell"><div class="btn door"><svg><use href="#b-door"/></svg></div><span>Tür öffnen</span></div>
+      <div class="cell"><div class="btn micon"><svg><use href="#b-mic"/></svg></div><span>Mikro an</span></div>
+      <div class="cell"><div class="btn micoff"><svg><use href="#b-micoff"/></svg></div><span>Mikro aus</span></div>
+      <div class="cell"><div class="btn accept"><svg><use href="#b-call"/></svg></div><span>Annehmen</span></div>
+      <div class="cell"><div class="btn hangup"><svg><use href="#b-end"/></svg></div><span>Auflegen</span></div>
+    </div>
+    <div class="phone">
+      <div class="label">HAUSTÜR · LIVE</div><div class="person"></div>
+      <div class="bar">
+        <div class="btn micon"><svg><use href="#b-mic"/></svg></div>
+        <div class="btn door"><svg><use href="#b-door"/></svg></div>
+        <div class="btn hangup"><svg><use href="#b-end"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <p class="notes"><b>Umsetzung:</b> Glyphen einfarbig weiß/dunkel, Farbe steckt im Button-Hintergrund (Shape mit <code>&lt;gradient&gt;</code> + <code>elevation</code>). Hörer mit kleinem Kontur-Stroke für weich abgerundete Ecken.</p>
+</section>
+
+<!-- ===================== Variante C ===================== -->
+<section class="c">
+  <h2>C · Duotone Glow</h2>
+  <p class="desc">
+    Konturen plus halbtransparente Füllfläche in der Akzentfarbe, dazu ein leuchtender Ring auf dunklem Glas.
+    Wirkt technischer und „smart-home-artig“. Details: Licht fällt durch die geöffnete Tür, das Mikrofon hat
+    ein Gitter, der Annehmen-Hörer „klingelt“.
+  </p>
+  <div class="row">
+    <div class="grid">
+      <div class="cell"><div class="btn door"><svg><use href="#c-door"/></svg></div><span>Tür öffnen</span></div>
+      <div class="cell"><div class="btn micon"><svg><use href="#c-mic"/></svg></div><span>Mikro an</span></div>
+      <div class="cell"><div class="btn micoff"><svg><use href="#c-micoff"/></svg></div><span>Mikro aus</span></div>
+      <div class="cell"><div class="btn accept"><svg><use href="#c-call"/></svg></div><span>Annehmen</span></div>
+      <div class="cell"><div class="btn hangup"><svg><use href="#c-end"/></svg></div><span>Auflegen</span></div>
+    </div>
+    <div class="phone">
+      <div class="label">HAUSTÜR · LIVE</div><div class="person"></div>
+      <div class="bar">
+        <div class="btn micon"><svg><use href="#c-mic"/></svg></div>
+        <div class="btn door"><svg><use href="#c-door"/></svg></div>
+        <div class="btn hangup"><svg><use href="#c-end"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <p class="notes"><b>Umsetzung:</b> zwei Ebenen pro Drawable (Füllung mit <code>android:fillAlpha="0.32"</code>, darüber Stroke). Der Glow-Ring lässt sich als <code>layer-list</code> mit Stroke und radialem Verlauf bauen.</p>
+</section>
+
+</body>
+</html>

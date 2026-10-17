@@ -1,0 +1,143 @@
+<resources>
+    <string name="app_name">Türklingel-Gegensprechanlage</string>
+
+    <string name="menu_settings">Einstellungen</string>
+    <string name="toolbar_settings_title">Einstellungen</string>
+
+    <string name="status_camera_not_configured">Kamera-Zugangsdaten fehlen – bitte in den Einstellungen eintragen</string>
+    <string name="status_mic_permission_needed">Mikrofon-Berechtigung erforderlich</string>
+    <string name="status_connecting">Verbinde …</string>
+    <string name="status_connected">Verbunden</string>
+    <string name="toast_settings_saved">Einstellungen gespeichert</string>
+    <string name="status_rtsp_error">RTSP-Fehler: %1$s – %2$s</string>
+
+    <string name="btn_talk_start">Sprechen</string>
+    <string name="btn_talk_stop">Stumm schalten</string>
+    <string name="btn_door_open">Tür öffnen</string>
+
+    <string name="status_talk_active">Sprechverbindung aktiv</string>
+    <string name="status_talk_failed">Gegensprechen fehlgeschlagen: %1$s</string>
+    <string name="status_talk_auth_failed">Gegensprechen fehlgeschlagen: Kamera hat die Zugangsdaten abgelehnt (Benutzername/Passwort prüfen)</string>
+
+    <string name="status_door_opening">Öffne Tür …</string>
+    <string name="status_door_open_not_configured">Tür-Webhook-URL fehlt – bitte in den Einstellungen eintragen</string>
+    <string name="status_door_opened">Tür geöffnet</string>
+    <string name="status_door_open_http_error">Fehler beim Türöffnen: HTTP %1$d</string>
+    <string name="status_door_open_failed">Türöffnen fehlgeschlagen: %1$s</string>
+
+    <string name="section_mqtt">MQTT</string>
+    <string name="section_mqtt_summary">Notfall-Weg: nur aktiv, wenn das WLAN kein Internet hat</string>
+    <string name="switch_mqtt_fallback">MQTT-Fallback bei Internetausfall (Hintergrunddienst mit Dauer-Benachrichtigung)</string>
+    <string name="hint_mqtt_host">MQTT-Broker-Adresse (z. B. 192.168.0.10)</string>
+    <string name="hint_mqtt_port">Port (Standard: 1883)</string>
+    <string name="hint_mqtt_user">Benutzername (optional)</string>
+    <string name="hint_mqtt_pass">Passwort (optional)</string>
+    <string name="hint_mqtt_topic">Topic (z. B. doorbell/ring)</string>
+
+    <string name="section_camera">Kamera</string>
+    <string name="hint_camera_host">Kamera-IP-Adresse (z. B. 192.168.0.111)</string>
+    <string name="hint_camera_bc_port">Baichuan-Port für Gegensprechen (Standard: 9000)</string>
+    <string name="hint_camera_user">Kamera-Benutzername (z. B. admin)</string>
+    <string name="hint_camera_pass">Kamera-Passwort</string>
+    <string name="hint_camera_rtsp_path">RTSP-Pfad für Video (Standard: h264Preview_01_main)</string>
+    <string name="check_keep_aspect_ratio">Seitenverhältnis beibehalten (keine Verzerrung)</string>
+    <string name="label_mic_gain">Mikrofon-Lautstärke beim Sprechen: %1$d %%</string>
+    <string name="label_video_start_buffer">Video-Puffer beim Start: %1$d ms (kleiner = weniger Verzögerung)</string>
+    <string name="label_video_rebuffer">Video-Puffer nach Aussetzer: %1$d ms</string>
+
+    <string name="section_ringing">Klingel</string>
+    <string name="section_ringing_summary">Klingeldauer, Klingelton</string>
+    <string name="section_camera_summary">Adresse, Zugangsdaten, Video und Mikrofon</string>
+    <string name="section_push_settings">Push-Einstellungen</string>
+    <string name="section_push_settings_summary">UnifiedPush, MQTT, Benachrichtigung wenn ein anderes Telefon abnimmt</string>
+    <string name="section_notifications">Benachrichtigungen</string>
+    <string name="section_connections">Weitere Verbindungen</string>
+    <string name="section_connections_summary">Türöffner, VPN</string>
+    <string name="section_about">Über / Lizenzen</string>
+    <string name="section_about_summary">Lizenz und Hinweise auf verwendete Fremdkomponenten</string>
+    <string name="label_ring_duration">Klingeldauer: %1$d s</string>
+    <string name="label_ringtone">Klingelton: %1$s</string>
+    <string name="btn_choose_ringtone">Klingelton wählen</string>
+    <string name="switch_ring_in_silent_mode">Auch klingeln, wenn das Telefon lautlos oder auf Vibration steht (nutzt die Wecker-Lautstärke)</string>
+    <string name="check_notify_answered_elsewhere">Benachrichtigen, wenn ein anderes Telefon abnimmt</string>
+    <string name="answered_elsewhere_title">Türklingel beantwortet von: %1$s</string>
+    <string name="section_door">Türöffner</string>
+    <string name="hint_door_open_url">Webhook-URL (HTTP-POST, z. B. https://.../api/webhook/…)</string>
+
+    <string name="section_push">Push (UnifiedPush)</string>
+    <string name="section_push_summary">Hauptweg für das Klingeln. Braucht einen Push-Verteiler, z. B. die ntfy-App.</string>
+    <string name="hint_registration_url">Registrierungs-URL (AppDaemon-Endpunkt, optional)</string>
+    <string name="error_no_push_endpoint">Noch kein Push-Endpunkt vom Push-Verteiler erhalten</string>
+    <string name="status_push_setting_up">Push-Dienst wird eingerichtet – danach erneut auf \"Jetzt melden\" tippen</string>
+    <string name="status_no_push_distributor">Kein Push-Verteiler gefunden – bitte die ntfy-App installieren</string>
+    <string name="hint_device_name">Gerätename in Home Assistant</string>
+    <string name="btn_register_device">Jetzt melden</string>
+    <string name="btn_unregister_device">Abmelden</string>
+    <string name="status_register_url_missing">Bitte zuerst die Registrierungs-URL eintragen</string>
+    <string name="status_register_device_blank">Bitte einen Gerätenamen eintragen</string>
+    <string name="status_device_registered">Bei Home Assistant gemeldet (HTTP %1$d)</string>
+    <string name="status_device_register_failed">Melden fehlgeschlagen: %1$s</string>
+    <string name="status_device_unregistered">Gerät in Home Assistant abgemeldet – meldet sich beim nächsten App-Start wieder an, solange eine Registrierungs-URL eingetragen ist</string>
+    <string name="status_device_unregister_failed">Abmelden fehlgeschlagen: %1$s</string>
+    <string name="error_http_code">HTTP %1$d</string>
+
+    <string name="section_vpn">VPN (WireGuard)</string>
+    <string name="section_vpn_summary">Für das Klingeln außerhalb des WLANs: baut den Tunnel beim Klingeln auf und beim Auflegen wieder ab. In der WireGuard-App muss \"Fernsteuerungs-Apps zulassen\" aktiviert sein.</string>
+    <string name="switch_wireguard_auto_vpn">VPN beim Klingeln automatisch aufbauen</string>
+    <string name="hint_wireguard_tunnel">Name des Tunnels in der WireGuard-App</string>
+    <string name="switch_silent_when_unreachable">Nur leise melden, wenn ich nicht zu Hause bin und kein VPN eingerichtet ist (Kamera nicht erreichbar)</string>
+    <string name="channel_not_reachable">Klingel (Kamera nicht erreichbar)</string>
+    <string name="not_reachable_title">Es hat geklingelt – Sie sind nicht im Heimnetz</string>
+    <string name="status_vpn_permission_granted">VPN-Steuerung erlaubt</string>
+    <string name="status_vpn_permission_denied">VPN-Steuerung nicht erlaubt – ist WireGuard installiert?</string>
+    <string name="status_vpn_connecting">Baue VPN auf …</string>
+
+    <string name="section_backup">Sicherung</string>
+    <string name="section_backup_summary">Exportiert den zuletzt gespeicherten Stand als JSON-Datei. Die Datei enthält Passwörter im Klartext.</string>
+    <string name="btn_export_settings">Exportieren</string>
+    <string name="btn_import_settings">Importieren</string>
+    <string name="btn_show_qr">QR-Code anzeigen</string>
+    <string name="btn_scan_qr">QR-Code scannen</string>
+    <string name="title_qr_dialog">Einstellungen als QR-Code</string>
+    <string name="message_qr_dialog">Diesen Code mit der App auf einem anderen Gerät scannen. Er enthält alle Passwörter im Klartext – nur Vertrauenspersonen zeigen.</string>
+    <string name="btn_close">Schließen</string>
+    <string name="title_qr_import_confirm">Einstellungen importieren?</string>
+    <string name="message_qr_import_confirm">Die aktuellen Einstellungen dieses Geräts werden ersetzt.</string>
+    <string name="btn_import_confirm">Importieren</string>
+    <string name="btn_cancel">Abbrechen</string>
+    <string name="status_qr_failed">QR-Code konnte nicht erzeugt oder gescannt werden</string>
+    <string name="status_settings_exported">Einstellungen exportiert</string>
+    <string name="status_settings_export_failed">Export fehlgeschlagen</string>
+    <string name="status_settings_imported">Einstellungen importiert und übernommen</string>
+    <string name="status_settings_import_failed">Import fehlgeschlagen – keine gültige Einstellungsdatei</string>
+
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license">Diese App ist freie Software: Du kannst sie unter den Bedingungen der GNU General Public License Version 3 (GPLv3) der Free Software Foundation weitergeben und/oder verändern. Sie wird ohne jede Gewährleistung bereitgestellt.\n\nhttps://www.gnu.org/licenses/gpl-3.0.html</string>
+    <string name="about_third_party_title">Fremdkomponenten</string>
+    <string name="about_reolink_aio">Das für das Gegensprechen verwendete Reolink-Baichuan-Protokoll (Anmeldung, Verschlüsselung, Sprechsitzung, Audio-Framing) ist aus reolink_aio von starkillerOG portiert (MIT-Lizenz):\nhttps://github.com/starkillerOG/reolink_aio\n\nDiese App steht in keiner Verbindung zu Reolink.</string>
+    <string name="about_libraries_title">Bibliotheken</string>
+    <string name="about_libraries">Diese App verwendet folgende Bibliotheken unter der Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):\n\n• AndroidX (core, appcompat, constraintlayout)\n• Material Components for Android\n• AndroidX Media3\n• HiveMQ MQTT Client\n• UnifiedPush Android connector\n• kotlinx.coroutines\n• ZXing core</string>
+    <string name="about_feather_icons">Das Telefonhörer-Symbol basiert auf Feather Icons (MIT-Lizenz):\nhttps://github.com/feathericons/feather</string>
+    <string name="incoming_call_title">Es klingelt an der Tür</string>
+    <string name="btn_accept">Annehmen</string>
+    <string name="btn_decline">Ablehnen</string>
+    <string name="btn_hang_up">Auflegen</string>
+    <string name="btn_door_open_and_hang_up">Tür öffnen und auflegen</string>
+    <string name="status_unlock_cancelled">Entsperren abgebrochen – zum Annehmen erneut tippen</string>
+
+    <string name="channel_service_status">Dienst-Status</string>
+    <string name="channel_incoming_call">Eingehender Klingel-Anruf</string>
+    <string name="channel_answered_elsewhere">Klingel beantwortet</string>
+
+    <string name="service_notification_title">Türklingel-Gegensprechanlage aktiv</string>
+    <string name="service_checking_network">Prüfe Netzwerk …</string>
+    <string name="service_standby_push">Standby – Klingeln kommt per Push, MQTT pausiert</string>
+    <string name="service_mqtt_not_configured">Keine MQTT-Adresse konfiguriert – bitte in der App eintragen</string>
+    <string name="service_reason_offline_wifi">WLAN ohne Internet</string>
+    <string name="service_mqtt_connecting">verbinde mit MQTT-Broker …</string>
+    <string name="service_mqtt_connected">verbunden, wartet auf Klingel-Event</string>
+    <string name="service_mqtt_disconnected">Verbindung getrennt – versuche erneut …</string>
+    <string name="service_mqtt_failed_retry">Verbindung fehlgeschlagen: %1$s – neuer Versuch in 10 s</string>
+    <string name="service_mqtt_gave_up">MQTT aufgegeben: %1$s – neuer Versuch erst bei Netzwerkwechsel oder App-Start</string>
+    <string name="service_mqtt_subscribe_failed">Abo fehlgeschlagen: %1$s</string>
+</resources>

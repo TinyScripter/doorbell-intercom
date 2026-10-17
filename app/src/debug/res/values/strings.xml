@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Überschreibt app_name je Sprache: Für jede Sprache in src/main/res muss es hier
+         ein passendes values-<sprache> geben, sonst zeigt die Debug-App den Release-Namen. -->
+    <string name="app_name">Doorbell Intercom Debug</string>
+</resources>

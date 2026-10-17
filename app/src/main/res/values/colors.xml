@@ -1,0 +1,5 @@
+<resources>
+    <color name="doorbell_primary">#1565C0</color>
+    <color name="doorbell_primary_dark">#0D47A1</color>
+    <color name="doorbell_accent">#43A047</color>
+</resources>

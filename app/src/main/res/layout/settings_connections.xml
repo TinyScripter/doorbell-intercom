@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.LinearLayout">
+
+    <!-- Türöffner -->
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.DoorbellIntercom.SettingsCard">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/section_door"
+                android:textAppearance="@style/TextAppearance.DoorbellIntercom.SettingsSection" />
+
+            <EditText
+                android:id="@+id/editDoorOpenUrl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_door_open_url"
+                android:inputType="textUri" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- VPN -->
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.DoorbellIntercom.SettingsCard">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/section_vpn"
+                android:textAppearance="@style/TextAppearance.DoorbellIntercom.SettingsSection" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/section_vpn_summary"
+                android:textAppearance="?attr/textAppearanceCaption" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchWireguardAutoVpn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/switch_wireguard_auto_vpn" />
+
+            <EditText
+                android:id="@+id/editWireguardTunnel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_wireguard_tunnel"
+                android:inputType="text" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchSilentWhenUnreachable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/switch_silent_when_unreachable" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</merge>

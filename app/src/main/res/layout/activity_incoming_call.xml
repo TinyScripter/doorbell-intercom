@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/videoView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:use_controller="false"
+        app:surface_type="texture_view"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:text="@string/incoming_call_title"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Mikrofon-Status mittig direkt über den Buttons; der Schatten hält den
+         Text auch lesbar, wenn er über hellem Videobild liegt. -->
+    <TextView
+        android:id="@+id/talkStatusText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:shadowColor="#000000"
+        android:shadowRadius="4"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toTopOf="@id/bottomArea"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Vor dem Annehmen ist nur buttonBar sichtbar, danach nur callControls.
+         Video, Button-Größe und -Position wie im Hauptbildschirm (activity_main). -->
+    <FrameLayout
+        android:id="@+id/bottomArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:id="@+id/buttonBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="24dp">
+
+            <ImageButton
+                android:id="@+id/btnDecline"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_btn_hangup"
+                android:contentDescription="@string/btn_decline"
+                android:src="@drawable/ic_call_end" />
+
+            <ImageButton
+                android:id="@+id/btnAccept"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_btn_accept"
+                android:contentDescription="@string/btn_accept"
+                android:src="@drawable/ic_call" />
+
+            <ImageButton
+                android:id="@+id/btnDoorOpenAndHangUp"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:background="@null"
+                android:contentDescription="@string/btn_door_open_and_hang_up"
+                android:padding="0dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/ic_door_hangup" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/callControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="24dp"
+            android:visibility="gone">
+
+            <ImageButton
+                android:id="@+id/btnTalk"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:layout_marginEnd="20dp"
+                android:background="@drawable/bg_btn_mic_off"
+                android:contentDescription="@string/btn_talk_start"
+                android:src="@drawable/ic_mic_off" />
+
+            <ImageButton
+                android:id="@+id/btnDoorOpen"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:layout_marginEnd="20dp"
+                android:background="@drawable/bg_btn_door"
+                android:contentDescription="@string/btn_door_open"
+                android:src="@drawable/ic_door" />
+
+            <ImageButton
+                android:id="@+id/btnHangUp"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:background="@drawable/bg_btn_hangup"
+                android:contentDescription="@string/btn_hang_up"
+                android:src="@drawable/ic_call_end" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

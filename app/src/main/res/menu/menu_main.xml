@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- Drei Punkte als eigenes Symbol, das direkt die Einstellungen öffnet (kein Überlaufmenü). -->
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/ic_settings_dots"
+        android:title="@string/menu_settings"
+        app:showAsAction="always" />
+</menu>

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_libraries_variant">QR codes are scanned with the ML Kit Code Scanner of Google Play Services. It is proprietary software, not part of this app, and subject to Google\'s terms.</string>
+</resources>

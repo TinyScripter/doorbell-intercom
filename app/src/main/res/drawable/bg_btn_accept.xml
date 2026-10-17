@@ -1,0 +1,12 @@
+<!-- Runder grüner Button: Annehmen -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#40FFFFFF">
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:angle="315"
+                android:endColor="#16A34A"
+                android:startColor="#4ADE80" />
+        </shape>
+    </item>
+</ripple>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.LinearLayout">
+
+    <!-- UnifiedPush -->
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.DoorbellIntercom.SettingsCard">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/section_push"
+                android:textAppearance="@style/TextAppearance.DoorbellIntercom.SettingsSection" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/section_push_summary"
+                android:textAppearance="?attr/textAppearanceCaption" />
+
+            <EditText
+                android:id="@+id/editRegistrationUrl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_registration_url"
+                android:inputType="textUri" />
+
+            <EditText
+                android:id="@+id/editDeviceName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_device_name"
+                android:inputType="text" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnRegisterDevice"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:text="@string/btn_register_device" />
+
+                <Button
+                    android:id="@+id/btnUnregisterDevice"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:text="@string/btn_unregister_device" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- MQTT -->
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.DoorbellIntercom.SettingsCard">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/section_mqtt"
+                android:textAppearance="@style/TextAppearance.DoorbellIntercom.SettingsSection" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/section_mqtt_summary"
+                android:textAppearance="?attr/textAppearanceCaption" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchMqttFallback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/switch_mqtt_fallback" />
+
+            <EditText
+                android:id="@+id/editMqttHost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_mqtt_host"
+                android:inputType="textUri" />
+
+            <EditText
+                android:id="@+id/editMqttPort"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_mqtt_port"
+                android:inputType="number" />
+
+            <EditText
+                android:id="@+id/editMqttUser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_mqtt_user"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editMqttPass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_mqtt_pass"
+                android:inputType="textPassword" />
+
+            <EditText
+                android:id="@+id/editMqttTopic"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_mqtt_topic"
+                android:inputType="text" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Benachrichtigungen -->
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.DoorbellIntercom.SettingsCard">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/section_notifications"
+                android:textAppearance="@style/TextAppearance.DoorbellIntercom.SettingsSection" />
+
+            <CheckBox
+                android:id="@+id/checkNotifyAnsweredElsewhere"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/check_notify_answered_elsewhere" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</merge>
