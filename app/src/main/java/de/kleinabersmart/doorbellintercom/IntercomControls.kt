@@ -19,7 +19,9 @@ class IntercomControls(
     private val context: Context,
     private val onStatus: (String) -> Unit,
     private val onTalkStatus: (String) -> Unit,
-    private val onTalkStateChanged: (talking: Boolean) -> Unit
+    private val onTalkStateChanged: (talking: Boolean) -> Unit,
+    /** Ob man gerade ins Mikrofon spricht; nur gemeldet, wenn das Dämpfen aktiviert ist. */
+    private val onSpeakingChanged: (speaking: Boolean) -> Unit = {}
 ) {
     private var talkSession: BaichuanTalkSession? = null
 
@@ -60,7 +62,8 @@ class IntercomControls(
                 stopTalk()
                 onTalkStatus(message)
             },
-            onStatus = onTalkStatus
+            onStatus = onTalkStatus,
+            onSpeaking = if (config.duckWhileTalking) onSpeakingChanged else null
         )
         session.start()
         talkSession = session
@@ -71,6 +74,7 @@ class IntercomControls(
         val session = talkSession ?: return
         talkSession = null
         session.stop()
+        onSpeakingChanged(false)
         onTalkStateChanged(false)
     }
 

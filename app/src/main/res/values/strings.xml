@@ -44,6 +44,7 @@
     <string name="hint_camera_rtsp_path">RTSP path for video (default: h264Preview_01_main)</string>
     <string name="check_keep_aspect_ratio">Keep aspect ratio (no distortion)</string>
     <string name="label_mic_gain">Microphone volume while talking: %1$d %%</string>
+    <string name="check_duck_while_talking">Lower doorbell audio while talking (prevents hearing your own echo)</string>
     <string name="label_video_start_buffer">Video buffer at start: %1$d ms (lower = less delay)</string>
     <string name="label_video_rebuffer">Video buffer after dropout: %1$d ms</string>
 

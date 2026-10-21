@@ -6,8 +6,12 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AudioEffect
+import android.media.audiofx.NoiseSuppressor
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import de.kleinabersmart.doorbellintercom.R
@@ -33,7 +37,9 @@ class BaichuanTalkSession(
     /** Verstärkungsfaktor für das Mikrofonsignal (1.0 = unverändert). */
     private val micGain: Float = 1.0f,
     private val onError: (String) -> Unit,
-    private val onStatus: (String) -> Unit
+    private val onStatus: (String) -> Unit,
+    /** Meldet, ob gerade jemand ins Mikrofon spricht (Pegel über SPEECH_PEAK_THRESHOLD). */
+    private val onSpeaking: ((Boolean) -> Unit)? = null
 ) {
     private val running = AtomicBoolean(false)
     // Nach stop() keine Meldungen mehr an die UI: z. B. würde ein noch
@@ -57,6 +63,7 @@ class BaichuanTalkSession(
 
     private fun postError(message: String) = mainHandler.post { if (!stopRequested) onError(message) }
     private fun postStatus(message: String) = mainHandler.post { if (!stopRequested) onStatus(message) }
+    private fun postSpeaking(speaking: Boolean) = mainHandler.post { if (!stopRequested) onSpeaking?.invoke(speaking) }
 
     private fun runSession() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
@@ -69,6 +76,7 @@ class BaichuanTalkSession(
 
         val client = BaichuanTalkClient(host, port, username, password)
         var audioRecord: AudioRecord? = null
+        var effects: List<AudioEffect> = emptyList()
         try {
             Log.d(TAG, "Starte Talk-Session zu $host:$port Kanal $channel")
             client.connect()
@@ -101,6 +109,7 @@ class BaichuanTalkSession(
                 throw IOException("Mikrofon konnte nicht initialisiert werden")
             }
             Log.d(TAG, "AudioRecord initialisiert: sampleRate=$sampleRate blockSize=$blockSize bufferBytes=$bufferBytes")
+            effects = enableVoiceEffects(record.audioSessionId)
 
             val encoder = BaichuanAdpcm.Encoder()
             val pcmBuffer = ShortArray(readSamples)
@@ -113,6 +122,8 @@ class BaichuanTalkSession(
             var peakOut = 0
             var clipped = 0
             var total = 0
+            var speaking = false
+            var lastSpeechAt = 0L
             while (running.get()) {
                 val read = record.read(pcmBuffer, 0, pcmBuffer.size)
                 if (read <= 0) {
@@ -120,7 +131,19 @@ class BaichuanTalkSession(
                     continue
                 }
                 readCount++
-                for (i in 0 until read) peakIn = maxOf(peakIn, kotlin.math.abs(pcmBuffer[i].toInt()))
+                var blockPeak = 0
+                for (i in 0 until read) blockPeak = maxOf(blockPeak, kotlin.math.abs(pcmBuffer[i].toInt()))
+                peakIn = maxOf(peakIn, blockPeak)
+                if (onSpeaking != null) {
+                    val now = SystemClock.elapsedRealtime()
+                    if (blockPeak >= SPEECH_PEAK_THRESHOLD) lastSpeechAt = now
+                    val nowSpeaking = now - lastSpeechAt < SPEECH_HANGOVER_MS
+                    if (nowSpeaking != speaking) {
+                        speaking = nowSpeaking
+                        Log.d(TAG, "Sprechen erkannt: $speaking (Spitze $blockPeak)")
+                        postSpeaking(speaking)
+                    }
+                }
                 if (micGain != 1.0f) applyGain(pcmBuffer, read, micGain)
                 for (i in 0 until read) {
                     val a = kotlin.math.abs(pcmBuffer[i].toInt())
@@ -150,6 +173,7 @@ class BaichuanTalkSession(
                 audioRecord?.stop()
             } catch (_: Exception) {
             }
+            effects.forEach { it.release() }
             audioRecord?.release()
             try {
                 client.stopTalk(channel)
@@ -163,6 +187,38 @@ class BaichuanTalkSession(
 
     companion object {
         private const val TAG = "BaichuanTalkSession"
+
+        /**
+         * Ab dieser Spitze (vor der Verstärkung) gilt ein Block als Sprache. Stille liegt
+         * nach Echo- und Rauschunterdrückung meist deutlich unter 100.
+         */
+        private const val SPEECH_PEAK_THRESHOLD = 1000
+        /** Kurze Pausen zwischen Wörtern zählen noch als Sprechen. */
+        private const val SPEECH_HANGOVER_MS = 400L
+
+        /**
+         * VOICE_COMMUNICATION schaltet Echo- und Rauschunterdrückung meist schon ein,
+         * aber nicht auf jedem Gerät – daher zusätzlich ausdrücklich, soweit vorhanden.
+         */
+        private fun enableVoiceEffects(audioSessionId: Int): List<AudioEffect> {
+            val effects = mutableListOf<AudioEffect>()
+            if (AcousticEchoCanceler.isAvailable()) {
+                AcousticEchoCanceler.create(audioSessionId)?.let { effects.add(it) }
+            }
+            if (NoiseSuppressor.isAvailable()) {
+                NoiseSuppressor.create(audioSessionId)?.let { effects.add(it) }
+            }
+            for (effect in effects) {
+                try {
+                    effect.enabled = true
+                } catch (e: Exception) {
+                    Log.w(TAG, "${effect.descriptor.name} ließ sich nicht einschalten", e)
+                }
+            }
+            Log.d(TAG, "Audio-Effekte: " + effects.joinToString { "${it.descriptor.name}=${it.enabled}" }
+                .ifEmpty { "keine verfügbar" })
+            return effects
+        }
 
         /** Verstärkt die ersten [count] Samples in-place; Übersteuerung wird auf den 16-Bit-Bereich begrenzt. */
         internal fun applyGain(samples: ShortArray, count: Int, gain: Float) {

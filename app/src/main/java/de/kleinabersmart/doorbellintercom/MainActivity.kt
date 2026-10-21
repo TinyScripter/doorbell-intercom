@@ -49,7 +49,8 @@ class MainActivity : AppCompatActivity() {
             onTalkStateChanged = { talking ->
                 binding.btnTalk.showTalkState(talking)
                 if (!talking) binding.talkStatusText.text = ""
-            }
+            },
+            onSpeakingChanged = { speaking -> rtspClient?.setDucked(speaking) }
         )
         binding.btnTalk.setOnClickListener { intercom.toggleTalk() }
         binding.btnDoorOpen.setOnClickListener { intercom.openDoor() }

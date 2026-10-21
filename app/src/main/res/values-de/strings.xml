@@ -42,6 +42,7 @@
     <string name="hint_camera_rtsp_path">RTSP-Pfad für Video (Standard: h264Preview_01_main)</string>
     <string name="check_keep_aspect_ratio">Seitenverhältnis beibehalten (keine Verzerrung)</string>
     <string name="label_mic_gain">Mikrofon-Lautstärke beim Sprechen: %1$d %%</string>
+    <string name="check_duck_while_talking">Klingel-Ton beim Sprechen dämpfen (verhindert das eigene Echo)</string>
     <string name="label_video_start_buffer">Video-Puffer beim Start: %1$d ms (kleiner = weniger Verzögerung)</string>
     <string name="label_video_rebuffer">Video-Puffer nach Aussetzer: %1$d ms</string>
 

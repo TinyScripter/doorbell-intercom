@@ -86,6 +86,15 @@ class AppConfig(context: Context) {
         set(value) = prefs.edit().putInt(KEY_MIC_GAIN_PERCENT, value).apply()
 
     /**
+     * Ton der Klingel im Handy leiser stellen, solange man spricht. Die Klingel
+     * nimmt die eigene Stimme aus ihrem Lautsprecher wieder auf und schickt sie
+     * zurück; ohne Dämpfung hört man sich verzögert selbst.
+     */
+    var duckWhileTalking: Boolean
+        get() = prefs.getBoolean(KEY_DUCK_WHILE_TALKING, true)
+        set(value) = prefs.edit().putBoolean(KEY_DUCK_WHILE_TALKING, value).apply()
+
+    /**
      * Wie viel Video vor dem Start der Wiedergabe gepuffert wird, in Millisekunden. Bestimmt die
      * Verzögerung zum Live-Bild; zu klein führt bei schwachem Netz zu Rucklern.
      */
@@ -287,6 +296,7 @@ class AppConfig(context: Context) {
         private const val KEY_CAMERA_RTSP_PATH = "camera_rtsp_path"
         private const val KEY_KEEP_ASPECT_RATIO = "keep_aspect_ratio"
         private const val KEY_MIC_GAIN_PERCENT = "mic_gain_percent"
+        private const val KEY_DUCK_WHILE_TALKING = "duck_while_talking"
         private const val KEY_VIDEO_START_BUFFER_MS = "video_start_buffer_ms"
         const val VIDEO_START_BUFFER_MIN_MS = 50
         const val VIDEO_START_BUFFER_MAX_MS = 1000

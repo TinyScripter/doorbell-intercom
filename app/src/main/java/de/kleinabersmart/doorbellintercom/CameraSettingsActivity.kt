@@ -26,6 +26,7 @@ class CameraSettingsActivity : SettingsSectionActivity() {
         val micGain = ((config.micGainPercent + 50) / 100 * 100).coerceIn(100, 2000)
         binding.sliderMicGain.value = micGain.toFloat()
         showMicGain(micGain)
+        binding.checkDuckWhileTalking.isChecked = config.duckWhileTalking
         // Auf die Schrittweiten der Regler (50 bzw. 100 ms) runden.
         val startBuffer = ((config.videoStartBufferMs + 25) / 50 * 50)
             .coerceIn(AppConfig.VIDEO_START_BUFFER_MIN_MS, AppConfig.VIDEO_START_BUFFER_MAX_MS)
@@ -45,6 +46,7 @@ class CameraSettingsActivity : SettingsSectionActivity() {
         config.cameraRtspPath = binding.editCameraRtspPath.text.toString().trim().trimStart('/')
         config.keepAspectRatio = binding.checkKeepAspectRatio.isChecked
         config.micGainPercent = binding.sliderMicGain.value.toInt()
+        config.duckWhileTalking = binding.checkDuckWhileTalking.isChecked
         config.videoStartBufferMs = binding.sliderVideoStartBuffer.value.toInt()
         config.videoRebufferMs = binding.sliderVideoRebuffer.value.toInt()
     }

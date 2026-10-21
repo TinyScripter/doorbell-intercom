@@ -64,7 +64,8 @@ class IncomingCallActivity : AppCompatActivity() {
             onTalkStateChanged = { talking ->
                 binding.btnTalk.showTalkState(talking)
                 if (!talking) binding.talkStatusText.text = ""
-            }
+            },
+            onSpeakingChanged = { speaking -> rtspClient?.setDucked(speaking) }
         )
 
         ContextCompat.registerReceiver(this, closeReceiver,

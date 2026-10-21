@@ -69,6 +69,12 @@
                 android:valueTo="2000"
                 app:labelBehavior="gone" />
 
+            <CheckBox
+                android:id="@+id/checkDuckWhileTalking"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/check_duck_while_talking" />
+
             <TextView
                 android:id="@+id/textVideoStartBuffer"
                 android:layout_width="wrap_content"
