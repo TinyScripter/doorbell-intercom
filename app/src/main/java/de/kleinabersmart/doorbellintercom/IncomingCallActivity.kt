@@ -21,8 +21,8 @@ import de.kleinabersmart.doorbellintercom.databinding.ActivityIncomingCallBindin
  * laut geschaltet (kein Neuaufbau, daher nahtlos); statt Annehmen/Ablehnen
  * erscheinen Sprechen, Tür öffnen und Auflegen.
  *
- * Bei gesperrtem Handy verlangt "Annehmen" zuerst die Entsperrung, damit
- * die Tür nicht vom Sperrbildschirm aus geöffnet werden kann.
+ * Bei gesperrtem Handy verlangen "Annehmen" und "Tür öffnen + Auflegen" zuerst
+ * die Entsperrung, damit die Tür nicht vom Sperrbildschirm aus geöffnet werden kann.
  */
 class IncomingCallActivity : AppCompatActivity() {
 
@@ -74,9 +74,10 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.btnAccept.setOnClickListener { acceptCall() }
         binding.btnDecline.setOnClickListener { finishAndRemoveTask() }
         binding.btnTalk.setOnClickListener { intercom.toggleTalk() }
-        binding.btnDoorOpen.setOnClickListener { intercom.openDoor() }
+        // Nach dem Annehmen ist das Handy entsperrt; runUnlocked sichert trotzdem ab.
+        binding.btnDoorOpen.setOnClickListener { runUnlocked(intercom::openDoor) }
         binding.btnHangUp.setOnClickListener { finishAndRemoveTask() }
-        binding.btnDoorOpenAndHangUp.setOnClickListener { openDoorAndHangUp() }
+        binding.btnDoorOpenAndHangUp.setOnClickListener { runUnlocked(::openDoorAndHangUp) }
 
         acceptIfRequested(intent)
     }
@@ -166,21 +167,27 @@ class IncomingCallActivity : AppCompatActivity() {
         finishAndRemoveTask()
     }
 
-    private fun acceptCall() {
-        val keyguard = getSystemService(KeyguardManager::class.java)
-        if (keyguard.isKeyguardLocked) {
-            keyguard.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
-                override fun onDismissSucceeded() {
-                    onCallAccepted()
-                }
+    private fun acceptCall() = runUnlocked(::onCallAccepted)
 
-                override fun onDismissCancelled() {
-                    binding.statusText.text = getString(R.string.status_unlock_cancelled)
-                }
-            })
-        } else {
-            onCallAccepted()
+    /**
+     * Führt [action] erst aus, wenn das Handy entsperrt ist. Der Bildschirm erscheint auch
+     * über dem Sperrbildschirm – Annehmen und Tür öffnen sollen dort nicht ohne Entsperren gehen.
+     */
+    private fun runUnlocked(action: () -> Unit) {
+        val keyguard = getSystemService(KeyguardManager::class.java)
+        if (!keyguard.isKeyguardLocked) {
+            action()
+            return
         }
+        keyguard.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+            override fun onDismissSucceeded() {
+                action()
+            }
+
+            override fun onDismissCancelled() {
+                binding.statusText.text = getString(R.string.status_unlock_cancelled)
+            }
+        })
     }
 
     private fun onCallAccepted() {

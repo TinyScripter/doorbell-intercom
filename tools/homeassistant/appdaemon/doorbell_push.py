@@ -61,10 +61,12 @@ die App ihn nicht mitsenden; dann stattdessen "secret" nutzen.
 
 import hmac
 import json
+import os
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from appdaemon.plugins.hass import Hass
@@ -73,6 +75,8 @@ TIMEOUT_SECONDS = 10
 ENDPOINT_NAME = "doorbell_devices"
 DEFAULT_DEVICES_FILE = "/config/doorbell_devices.json"
 MAX_FIELD_LENGTH = 512
+# Gleichzeitige Pushes: ein hängender Endpoint soll die anderen Handys nicht aufhalten.
+MAX_PARALLEL_PUSHES = 8
 
 
 class DoorbellPush(Hass):
@@ -84,6 +88,14 @@ class DoorbellPush(Hass):
 
         self._devices_path = self.args.get("devices_file", DEFAULT_DEVICES_FILE)
         self._secret = self.args.get("secret")
+        if not self._secret:
+            # Ohne Geheimnis kann jeder im Netz Geräte eintragen (und so erfahren, wann es
+            # klingelt), fremde Geräte abmelden oder per "answered" stummschalten.
+            self.log(
+                "Kein 'secret' in apps.yaml gesetzt – der Endpunkt ist für jeden im Netz offen. "
+                "Bitte ein langes, zufälliges secret eintragen.",
+                level="WARNING",
+            )
         # on_ring läuft in einem Worker-Thread, der Endpunkt im Event-Loop:
         # der Zugriff auf die Geräte-Datei muss daher gesperrt werden.
         self._lock = threading.Lock()
@@ -112,8 +124,15 @@ class DoorbellPush(Hass):
             return {}
 
     def _write_devices(self, devices: dict):
-        with open(self._devices_path, "w", encoding="utf-8") as f:
+        # Erst in eine temporäre Datei, dann ersetzen: bricht das Schreiben ab (Neustart,
+        # volle Platte), bleibt die alte Liste erhalten statt einer halben Datei, die beim
+        # nächsten Lesen als leer gälte – dann wären alle Geräte still verschwunden.
+        tmp_path = self._devices_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(devices, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, self._devices_path)
 
     # --- HTTP-Endpunkt -----------------------------------------------------
 
@@ -218,25 +237,33 @@ class DoorbellPush(Hass):
             self.log("Kein Gerät für den Push vorhanden", level="WARNING")
             return
 
+        # Alle Geräte gleichzeitig: nacheinander würde ein hängender Endpoint (bis zu
+        # TIMEOUT_SECONDS) das Klingeln auf allen folgenden Handys verzögern.
+        with ThreadPoolExecutor(max_workers=min(MAX_PARALLEL_PUSHES, len(devices))) as pool:
+            for name, info in devices.items():
+                pool.submit(self._push_device, name, info, data)
+
+    def _push_device(self, name: str, info: dict, data: dict):
         # Jedes Gerät einzeln: eine ungültige Endpoint-URL darf die anderen nicht aufhalten.
-        for name, info in devices.items():
-            endpoint = info.get("endpoint")
-            if not self._is_http_url(endpoint):
-                self.log(f"\"{name}\" hat noch keine Endpoint-URL – App muss sich neu melden", level="WARNING")
-                continue
-            try:
-                self._send(endpoint, data)
-                self.log(f"Push {data['type']} an \"{name}\" gesendet")
-            except urllib.error.HTTPError as e:
-                if e.code in (404, 410):
-                    # Endpoint beim Push-Server nicht mehr vorhanden: App deinstalliert oder abgemeldet.
-                    self.log(f"Endpoint von \"{name}\" ungültig – Gerät wird entfernt", level="WARNING")
-                    self._remove_device(name)
-                else:
-                    detail = e.read().decode(errors="replace")
-                    self.log(f"HTTP {e.code} für \"{name}\": {detail}", level="ERROR")
-            except (OSError, ValueError) as e:
-                self.log(f"Push an \"{name}\" fehlgeschlagen: {e}", level="ERROR")
+        endpoint = info.get("endpoint")
+        if not self._is_http_url(endpoint):
+            self.log(f"\"{name}\" hat noch keine Endpoint-URL – App muss sich neu melden", level="WARNING")
+            return
+        try:
+            self._send(endpoint, data)
+            self.log(f"Push {data['type']} an \"{name}\" gesendet")
+        except urllib.error.HTTPError as e:
+            if e.code in (404, 410):
+                # Endpoint beim Push-Server nicht mehr vorhanden: App deinstalliert oder abgemeldet.
+                self.log(f"Endpoint von \"{name}\" ungültig – Gerät wird entfernt", level="WARNING")
+                self._remove_device(name)
+            else:
+                detail = e.read().decode(errors="replace")
+                self.log(f"HTTP {e.code} für \"{name}\": {detail}", level="ERROR")
+        except (OSError, ValueError) as e:
+            self.log(f"Push an \"{name}\" fehlgeschlagen: {e}", level="ERROR")
+        except Exception as e:  # noqa: BLE001 – im Worker-Thread ginge der Fehler sonst unbemerkt verloren
+            self.log(f"Push an \"{name}\" fehlgeschlagen (unerwartet): {e!r}", level="ERROR")
 
     def _send(self, endpoint: str, data: dict):
         request = urllib.request.Request(

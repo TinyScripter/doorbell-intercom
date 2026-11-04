@@ -17,10 +17,14 @@ import java.util.concurrent.atomic.AtomicInteger
  * falls dein Broker das unterstützt.
  *
  * Verbindungsversuche (erster Aufbau wie auch nach einem Abbruch) werden
- * selbst wiederholt statt über HiveMQs automaticReconnect, damit nach
- * MAX_FAILED_ATTEMPTS Fehlversuchen in Folge Schluss ist – etwa in einem
- * fremden WLAN, in dem der Broker nie erreichbar ist. Eine neue Instanz
- * (Netzwerkwechsel, App-Start, Speichern der Einstellungen) versucht es erneut.
+ * selbst wiederholt statt über HiveMQs automaticReconnect, mit wachsendem
+ * Abstand (RETRY_DELAY_SECONDS bis MAX_RETRY_DELAY_SECONDS). Aufgegeben wird
+ * nur, wenn [maxAttemptsUntilFirstConnect] gesetzt ist und der Broker mit
+ * dieser Instanz noch nie erreichbar war – etwa in einem fremden WLAN. Stand
+ * die Verbindung schon einmal, ist der Broker nur vorübergehend weg (z. B.
+ * Neustart von Home Assistant), dann wird unbegrenzt weiter versucht. Eine
+ * neue Instanz (Netzwerkwechsel, App-Start, Speichern der Einstellungen)
+ * fängt wieder von vorn an.
  */
 class MqttClientWrapper(
     private val context: Context,
@@ -30,7 +34,12 @@ class MqttClientWrapper(
     private val password: String,
     private val onMessage: (topic: String, payload: String) -> Unit,
     private val onConnectionChanged: (connected: Boolean) -> Unit,
-    private val onConnectFailed: (reason: String, willRetry: Boolean) -> Unit
+    /** Wartezeit bis zum nächsten Versuch in Sekunden; null, wenn keiner mehr folgt. */
+    private val onConnectFailed: (reason: String, retryInSeconds: Long?) -> Unit,
+    /** Fehlversuche bis zum Aufgeben, solange noch nie verbunden; null = nie aufgeben. */
+    private val maxAttemptsUntilFirstConnect: Int? = null,
+    /** Aufgegeben, weil der Broker nie erreichbar war (siehe [maxAttemptsUntilFirstConnect]). */
+    private val onGaveUp: () -> Unit = {}
 ) {
     @Volatile
     private var client: Mqtt5AsyncClient? = null
@@ -42,6 +51,9 @@ class MqttClientWrapper(
 
     @Volatile
     private var connected = false
+
+    @Volatile
+    private var everConnected = false
 
     fun connect(topic: String) {
         val builder = MqttClient.builder()
@@ -65,6 +77,7 @@ class MqttClientWrapper(
                 if (stopped) return@addConnectedListener
                 Log.i(TAG, "MQTT verbunden mit $host:$port, abonniere $topic")
                 connected = true
+                everConnected = true
                 failedAttempts.set(0)
                 onConnectionChanged(true)
                 subscribe(topic)
@@ -76,7 +89,7 @@ class MqttClientWrapper(
                 connected = false
                 Log.w(TAG, "MQTT-Verbindung getrennt", disconnectedContext.cause)
                 onConnectionChanged(false)
-                scheduleAttempt(topic)
+                scheduleAttempt(topic, RETRY_DELAY_SECONDS)
             }
             .buildAsync()
 
@@ -96,16 +109,29 @@ class MqttClientWrapper(
             }
             if (throwable != null) {
                 val failures = failedAttempts.incrementAndGet()
-                val willRetry = failures < MAX_FAILED_ATTEMPTS
-                Log.w(TAG, "MQTT-Verbindung zu $host:$port fehlgeschlagen ($failures/$MAX_FAILED_ATTEMPTS)", throwable)
+                val limit = maxAttemptsUntilFirstConnect
+                val giveUp = !everConnected && limit != null && failures >= limit
+                Log.w(TAG, "MQTT-Verbindung zu $host:$port fehlgeschlagen (Versuch $failures)", throwable)
                 onConnectionChanged(false)
-                onConnectFailed(throwable.message ?: throwable.javaClass.simpleName, willRetry)
-                if (willRetry) scheduleAttempt(topic)
+                val reason = throwable.message ?: throwable.javaClass.simpleName
+                if (giveUp) {
+                    Log.w(TAG, "Broker $host:$port nach $failures Versuchen nie erreicht – gebe auf")
+                    onConnectFailed(reason, null)
+                    onGaveUp()
+                } else {
+                    val delay = retryDelaySeconds(failures)
+                    onConnectFailed(reason, delay)
+                    scheduleAttempt(topic, delay)
+                }
             }
         }
     }
 
-    private fun scheduleAttempt(topic: String) {
+    /** 10 s, 20 s, 40 s, … bis höchstens MAX_RETRY_DELAY_SECONDS. */
+    private fun retryDelaySeconds(failures: Int): Long =
+        (RETRY_DELAY_SECONDS shl (failures - 1).coerceIn(0, 10)).coerceAtMost(MAX_RETRY_DELAY_SECONDS)
+
+    private fun scheduleAttempt(topic: String, delaySeconds: Long) {
         if (stopped) return
         retryExecutor.schedule(
             {
@@ -113,7 +139,7 @@ class MqttClientWrapper(
                     attemptConnect(topic)
                 }
             },
-            RETRY_DELAY_SECONDS,
+            delaySeconds,
             TimeUnit.SECONDS
         )
     }
@@ -123,6 +149,12 @@ class MqttClientWrapper(
             ?.topicFilter(topic)
             ?.qos(MqttQos.AT_LEAST_ONCE)
             ?.callback { publish ->
+                // Eine gespeicherte (retained) Nachricht kommt bei jedem Abonnieren erneut –
+                // sonst würde jeder Reconnect ein altes Klingeln wieder auslösen.
+                if (publish.isRetain) {
+                    Log.i(TAG, "Retained-Nachricht auf ${publish.topic} ignoriert")
+                    return@callback
+                }
                 val payload = String(publish.payloadAsBytes, Charsets.UTF_8)
                 onMessage(publish.topic.toString(), payload)
             }
@@ -132,7 +164,7 @@ class MqttClientWrapper(
                     Log.w(TAG, "Abonnieren von $topic fehlgeschlagen", throwable)
                     onConnectFailed(
                         context.getString(R.string.service_mqtt_subscribe_failed, throwable.message),
-                        false
+                        null
                     )
                 }
             }
@@ -148,6 +180,6 @@ class MqttClientWrapper(
     private companion object {
         const val TAG = "MqttClientWrapper"
         const val RETRY_DELAY_SECONDS = 10L
-        const val MAX_FAILED_ATTEMPTS = 3
+        const val MAX_RETRY_DELAY_SECONDS = 300L
     }
 }

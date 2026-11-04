@@ -3,6 +3,23 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:parentTag="android.widget.LinearLayout">
 
+    <!-- Systemcheck: nur sichtbar, wenn etwas fehlt; Einträge kommen aus SystemCheck. -->
+    <TextView
+        android:id="@+id/checkTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="@string/check_title"
+        android:textAppearance="@style/TextAppearance.DoorbellIntercom.SettingsSection"
+        android:textColor="?attr/colorError"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/checkList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
     <!-- Die Einträge zu den Unterseiten werden im Code eingefügt (item_settings_entry). -->
     <LinearLayout
         android:id="@+id/entryList"

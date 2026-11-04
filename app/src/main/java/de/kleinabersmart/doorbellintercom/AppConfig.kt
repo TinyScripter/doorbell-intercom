@@ -1,5 +1,6 @@
 package de.kleinabersmart.doorbellintercom
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
@@ -19,11 +20,39 @@ import java.util.zip.GZIPOutputStream
  * daher genügt eine simple SharedPreferences-Ablage ohne Verschlüsselung.
  * Für den produktiven Einsatz auf einem nicht rein privaten Gerät:
  * EncryptedSharedPreferences (androidx.security) verwenden.
+ *
+ * Zwei Dateien: Einstellungen ([prefs], exportiert und im Android-Backup) und Gerätedaten
+ * ([devicePrefs], weder exportiert noch gesichert, siehe res/xml/data_extraction_rules.xml).
+ * Sonst übernähme ein neues Handy aus dem Backup den Gerätenamen des alten, und beide
+ * überschrieben sich in Home Assistant.
  */
 class AppConfig(context: Context) {
 
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("doorbell_config", Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREFS_SETTINGS, Context.MODE_PRIVATE)
+
+    private val devicePrefs: SharedPreferences =
+        context.getSharedPreferences(PREFS_DEVICE, Context.MODE_PRIVATE)
+
+    init {
+        migrateDeviceKeys()
+    }
+
+    /** Bis Version 1.0.1 lagen die Gerätedaten mit in der Einstellungs-Datei. */
+    @SuppressLint("ApplySharedPref") // commit: siehe Kommentar unten
+    private fun migrateDeviceKeys() {
+        val legacy = DEVICE_KEYS.filter(prefs::contains)
+        if (legacy.isEmpty()) return
+        val values = prefs.all
+        val deviceEditor = devicePrefs.edit()
+        for (key in legacy) {
+            val value = values[key]
+            if (value is String && !devicePrefs.contains(key)) deviceEditor.putString(key, value)
+        }
+        // Erst sicher in der neuen Datei, dann aus der alten entfernen.
+        deviceEditor.commit()
+        prefs.edit().apply { legacy.forEach(::remove) }.apply()
+    }
 
     var mqttHost: String
         get() = prefs.getString(KEY_MQTT_HOST, "") ?: ""
@@ -116,9 +145,10 @@ class AppConfig(context: Context) {
         set(value) = prefs.edit().putInt(KEY_RING_DURATION_SECONDS, value).apply()
 
     /** Klingelton beim Klingeln; Standard ist der Klingelton des Telefons. */
+    // Gerätedatum: ein content://-URI, der auf einem anderen Gerät einen anderen Ton meinen kann.
     var ringtoneUri: Uri
-        get() = prefs.getString(KEY_RINGTONE_URI, null)?.let(Uri::parse) ?: Settings.System.DEFAULT_RINGTONE_URI
-        set(value) = prefs.edit().putString(KEY_RINGTONE_URI, value.toString()).apply()
+        get() = devicePrefs.getString(KEY_RINGTONE_URI, null)?.let(Uri::parse) ?: Settings.System.DEFAULT_RINGTONE_URI
+        set(value) = devicePrefs.edit().putString(KEY_RINGTONE_URI, value.toString()).apply()
 
     /** Auch bei lautlos oder auf Vibration gestelltem Telefon klingeln (über die Wecker-Lautstärke). */
     var ringInSilentMode: Boolean
@@ -138,14 +168,14 @@ class AppConfig(context: Context) {
     /**
      * Name dieses Geräts bei der Registrierung in Home Assistant. Standardwert ist das Modell
      * mit einer zufälligen Endung, damit zwei gleiche Handys sich nicht überschreiben. Beim
-     * ersten Lesen erzeugt und dauerhaft gespeichert. Nicht Teil von Export/Import (siehe
-     * NON_SETTING_KEYS): sonst würde ein importiertes Backup den Namen des alten Handys auf
-     * das neue übertragen und die beiden würden sich in Home Assistant überschreiben.
+     * ersten Lesen erzeugt und dauerhaft gespeichert. Gerätedatum (siehe [devicePrefs]): sonst
+     * würde ein Export oder Backup den Namen des alten Handys auf das neue übertragen und die
+     * beiden würden sich in Home Assistant überschreiben.
      */
     var deviceName: String
-        get() = prefs.getString(KEY_DEVICE_NAME, null)?.takeIf { it.isNotBlank() }
-            ?: defaultDeviceName().also { prefs.edit().putString(KEY_DEVICE_NAME, it).apply() }
-        set(value) = prefs.edit().putString(KEY_DEVICE_NAME, value).apply()
+        get() = devicePrefs.getString(KEY_DEVICE_NAME, null)?.takeIf { it.isNotBlank() }
+            ?: defaultDeviceName().also { devicePrefs.edit().putString(KEY_DEVICE_NAME, it).apply() }
+        set(value) = devicePrefs.edit().putString(KEY_DEVICE_NAME, value).apply()
 
     private fun defaultDeviceName(): String =
         "${Build.MODEL} (${UUID.randomUUID().toString().take(4)})"
@@ -157,11 +187,11 @@ class AppConfig(context: Context) {
 
     /**
      * UnifiedPush-Endpoint-URL dieses Geräts, die der Push-Verteiler (z. B. ntfy) vergeben hat.
-     * Gerätespezifisch und daher nicht Teil von Export/Import (siehe NON_SETTING_KEYS).
+     * Gerätedatum (siehe [devicePrefs]).
      */
     var pushEndpoint: String
-        get() = prefs.getString(KEY_PUSH_ENDPOINT, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_PUSH_ENDPOINT, value).apply()
+        get() = devicePrefs.getString(KEY_PUSH_ENDPOINT, "") ?: ""
+        set(value) = devicePrefs.edit().putString(KEY_PUSH_ENDPOINT, value).apply()
 
     /** Beim Klingeln außerhalb des Heimnetzes den WireGuard-Tunnel automatisch auf- und danach abbauen. */
     var wireguardAutoVpn: Boolean
@@ -188,23 +218,34 @@ class AppConfig(context: Context) {
      * Minuten und ist dann nicht mehr auswertbar (siehe RING_LOG_MAX_ENTRIES).
      */
     fun appendRingLogEntry(entry: String) {
-        val updated = (listOf(entry) + ringLog).take(RING_LOG_MAX_ENTRIES)
-        prefs.edit().putString(KEY_RING_LOG, updated.joinToString("\n")).apply()
+        // Wird aus mehreren Threads aufgerufen (Push, MQTT, Hintergrund-Threads des Notifiers).
+        synchronized(RING_LOG_LOCK) {
+            val updated = (listOf(entry) + ringLog).take(RING_LOG_MAX_ENTRIES)
+            devicePrefs.edit().putString(KEY_RING_LOG, updated.joinToString("\n")).apply()
+        }
     }
 
     /** Neuestes Ereignis zuerst. */
     val ringLog: List<String>
-        get() = prefs.getString(KEY_RING_LOG, "")
+        get() = devicePrefs.getString(KEY_RING_LOG, "")
             ?.split("\n")
             ?.filter { it.isNotBlank() }
             ?: emptyList()
 
     /**
+     * Stand der Einstellungen und Gerätedaten, um Änderungen auf einer Einstellungsseite zu
+     * erkennen. Ohne Ring-Log und Push-Endpoint: die ändern sich auch ohne Zutun des Nutzers.
+     */
+    fun snapshot(): String =
+        (prefs.all + devicePrefs.all.filterKeys { it != KEY_RING_LOG && it != KEY_PUSH_ENDPOINT })
+            .toSortedMap().toString()
+
+    /**
      * Alle gespeicherten Einstellungen als JSON. Liest generisch sämtliche Einträge der
-     * SharedPreferences, statt die Felder einzeln aufzuzählen – neue Einstellungen landen
-     * damit automatisch im Export. Außen vor bleibt nur, was keine Einstellung ist
-     * (siehe NON_SETTING_KEYS). Nie gespeicherte Einstellungen fehlen in der Datei und
-     * erhalten beim Import ihren Standardwert.
+     * Einstellungs-Datei, statt die Felder einzeln aufzuzählen – neue Einstellungen landen
+     * damit automatisch im Export. Gerätedaten liegen in [devicePrefs] und bleiben außen vor.
+     * Nie gespeicherte Einstellungen fehlen in der Datei und erhalten beim Import ihren
+     * Standardwert.
      *
      * Die Typen stehen getrennt daneben, weil JSON Int, Long und Float nicht
      * unterscheidet, SharedPreferences beim Lesen aber auf dem exakten Typ besteht.
@@ -213,7 +254,7 @@ class AppConfig(context: Context) {
         val settings = JSONObject()
         val types = JSONObject()
         for ((key, value) in prefs.all.toSortedMap()) {
-            if (key in NON_SETTING_KEYS) continue
+            if (key in DEVICE_KEYS) continue
             when (value) {
                 is String -> types.put(key, TYPE_STRING)
                 is Int -> types.put(key, TYPE_INT)
@@ -262,10 +303,9 @@ class AppConfig(context: Context) {
         val settings = root.getJSONObject("settings")
         val types = root.getJSONObject("types")
 
-        val editor = prefs.edit()
-        prefs.all.keys.filterNot { it in NON_SETTING_KEYS }.forEach { editor.remove(it) }
+        val editor = prefs.edit().clear()
         for (key in settings.keys()) {
-            if (key in NON_SETTING_KEYS) continue
+            if (key in DEVICE_KEYS) continue
             when (val type = types.optString(key)) {
                 TYPE_STRING -> editor.putString(key, settings.getString(key))
                 TYPE_INT -> editor.putInt(key, settings.getInt(key))
@@ -283,6 +323,10 @@ class AppConfig(context: Context) {
     }
 
     companion object {
+        private const val PREFS_SETTINGS = "doorbell_config"
+        // Name steht auch in res/xml/data_extraction_rules.xml und backup_rules.xml.
+        private const val PREFS_DEVICE = "doorbell_device"
+
         private const val KEY_MQTT_HOST = "mqtt_host"
         private const val KEY_MQTT_PORT = "mqtt_port"
         private const val KEY_MQTT_USER = "mqtt_user"
@@ -322,10 +366,13 @@ class AppConfig(context: Context) {
         private const val KEY_DEVICE_NAME = "device_name"
         private const val KEY_RING_LOG = "ring_log"
         private const val RING_LOG_MAX_ENTRIES = 20
+        private val RING_LOG_LOCK = Any()
 
-        /** Einträge, die keine Einstellung sind und weder exportiert noch beim Import angefasst werden. */
-        // Der Klingelton ist ein content://-URI, der nur auf dem Quellgerät gilt.
-        private val NON_SETTING_KEYS = setOf(KEY_RING_LOG, KEY_DEVICE_NAME, KEY_PUSH_ENDPOINT, KEY_RINGTONE_URI)
+        /**
+         * Gerätedaten in [devicePrefs] (alle als String gespeichert). Auch beim Import
+         * übersprungen, falls eine Datei sie doch enthält.
+         */
+        private val DEVICE_KEYS = setOf(KEY_RING_LOG, KEY_DEVICE_NAME, KEY_PUSH_ENDPOINT, KEY_RINGTONE_URI)
 
         private const val QR_PREFIX = "dbi1:"
 

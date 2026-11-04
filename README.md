@@ -32,8 +32,15 @@ home network, with no vendor cloud in between.
 - **Automatic VPN** (optional): away from home, the app can bring up your
   WireGuard tunnel when the doorbell rings and take it down again afterwards.
 - **Settings export and import** as a JSON file (the file contains passwords
-  in plain text).
-- Starts its background service again after a reboot.
+  in plain text). The Android backup also restores the settings on a new
+  phone; device name, push registration and ringtone stay per device and are
+  never exported or backed up, so two phones cannot overwrite each other in
+  Home Assistant.
+- Starts its background service again after a reboot (once the phone has been
+  unlocked for the first time) and after an app update.
+- **Setup check**: the start screen and the settings page point out missing
+  requirements (notifications, full-screen call screen, battery optimisation)
+  and open the matching system setting with one tap.
 
 ## 2. Requirements
 
@@ -87,7 +94,13 @@ a background service with a permanent notification.
   the ntfy push is used then. When the phone is in a Wi-Fi network **without
   internet**, the app connects to your local broker after about 10 seconds and
   binds to that Wi-Fi. Without bound Wi-Fi, local traffic would be routed over
-  mobile data.
+  mobile data. If the broker cannot be reached there after three attempts (for
+  example the Wi-Fi of a car or of a device in setup mode), that Wi-Fi is not
+  treated as your home network: the app releases the binding, and the ring
+  comes via push over mobile data.
+- Once connected, the app reconnects to the broker on its own after an
+  interruption (for example while Home Assistant restarts), waiting a little
+  longer after each failed attempt (up to 5 minutes).
 - If no ntfy registration URL is configured, MQTT stays connected permanently.
 - With the switch **MQTT fallback** in the settings turned off, there is no
   background service and no permanent notification; the ring comes via ntfy
@@ -108,7 +121,9 @@ action:
       qos: 1
 ```
 
-The topic must match the **Topic** field in the app settings.
+The topic must match the **Topic** field in the app settings. Do not publish
+with `retain: true`: the app ignores retained messages, otherwise every
+reconnect would ring again.
 
 ### 4.2 ntfy push via AppDaemon
 
@@ -129,6 +144,9 @@ The topic must match the **Topic** field in the app settings.
    ```
 
    `trigger_entity` is the binary sensor that turns `on` when someone rings.
+   Set a `secret`: without it anyone in your network can register devices,
+   learn when the doorbell rings or silence other phones. The AppDaemon log
+   shows a warning while no secret is set.
 4. Install the **ntfy app** on every phone (Play Store or F-Droid).
 5. In the app: **Settings → Push settings**, enter the **registration URL**
 

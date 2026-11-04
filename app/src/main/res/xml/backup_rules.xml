@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android-Backup bis Android 11; gleiche Regeln wie data_extraction_rules.xml. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="doorbell_device.xml" />
+    <exclude domain="sharedpref" path="unifiedpush.connector.xml" />
+    <exclude domain="database" path="unifiedpush-connector" />
+    <exclude domain="database" path="unifiedpush-connector-journal" />
+    <exclude domain="database" path="unifiedpush-connector-wal" />
+    <exclude domain="database" path="unifiedpush-connector-shm" />
+</full-backup-content>

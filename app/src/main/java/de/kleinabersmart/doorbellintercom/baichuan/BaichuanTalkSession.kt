@@ -126,10 +126,10 @@ class BaichuanTalkSession(
             var lastSpeechAt = 0L
             while (running.get()) {
                 val read = record.read(pcmBuffer, 0, pcmBuffer.size)
-                if (read <= 0) {
-                    Log.w(TAG, "AudioRecord.read() lieferte $read (erwartet > 0)")
-                    continue
-                }
+                // Negative Werte sind Fehlercodes (z. B. ERROR_DEAD_OBJECT, wenn ein Anruf das
+                // Mikrofon übernimmt) und bleiben bestehen – weiterlesen würde endlos kreisen.
+                if (read < 0) throw IOException("Mikrofon-Fehler (AudioRecord.read = $read)")
+                if (read == 0) continue
                 readCount++
                 var blockPeak = 0
                 for (i in 0 until read) blockPeak = maxOf(blockPeak, kotlin.math.abs(pcmBuffer[i].toInt()))

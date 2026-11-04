@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android-Backup ab Android 12 (für ältere Versionen siehe backup_rules.xml).
+     Die Einstellungen werden gesichert, Gerätedaten nicht: Ein neues Handy würde sonst
+     Gerätenamen und Push-Endpoint des alten übernehmen, und beide überschrieben sich in
+     Home Assistant. Die UnifiedPush-Datenbank enthält Schlüssel aus dem Android Keystore,
+     der nicht mitgesichert wird – wiederhergestellt wäre sie unbrauchbar. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="doorbell_device.xml" />
+        <exclude domain="sharedpref" path="unifiedpush.connector.xml" />
+        <exclude domain="database" path="unifiedpush-connector" />
+        <exclude domain="database" path="unifiedpush-connector-journal" />
+        <exclude domain="database" path="unifiedpush-connector-wal" />
+        <exclude domain="database" path="unifiedpush-connector-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="doorbell_device.xml" />
+        <exclude domain="sharedpref" path="unifiedpush.connector.xml" />
+        <exclude domain="database" path="unifiedpush-connector" />
+        <exclude domain="database" path="unifiedpush-connector-journal" />
+        <exclude domain="database" path="unifiedpush-connector-wal" />
+        <exclude domain="database" path="unifiedpush-connector-shm" />
+    </device-transfer>
+</data-extraction-rules>

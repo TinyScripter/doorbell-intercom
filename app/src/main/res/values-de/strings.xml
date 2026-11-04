@@ -138,7 +138,18 @@
     <string name="service_mqtt_connecting">verbinde mit MQTT-Broker …</string>
     <string name="service_mqtt_connected">verbunden, wartet auf Klingel-Event</string>
     <string name="service_mqtt_disconnected">Verbindung getrennt – versuche erneut …</string>
-    <string name="service_mqtt_failed_retry">Verbindung fehlgeschlagen: %1$s – neuer Versuch in 10 s</string>
+    <string name="service_mqtt_failed_retry">Verbindung fehlgeschlagen: %1$s – neuer Versuch in %2$d s</string>
     <string name="service_mqtt_gave_up">MQTT aufgegeben: %1$s – neuer Versuch erst bei Netzwerkwechsel oder App-Start</string>
     <string name="service_mqtt_subscribe_failed">Abo fehlgeschlagen: %1$s</string>
+    <string name="service_offline_wifi_not_home">WLAN ohne Internet, MQTT-Broker dort nicht erreichbar – Klingeln per Push</string>
+
+    <string name="check_title">Einrichtung prüfen</string>
+    <string name="check_notifications_off">Benachrichtigungen sind ausgeschaltet</string>
+    <string name="check_notifications_off_summary">Ohne sie klingelt das Handy nicht. Tippen zum Einschalten.</string>
+    <string name="check_full_screen_off">Klingelbildschirm im Vollbild nicht erlaubt</string>
+    <string name="check_full_screen_off_summary">Ohne diese Berechtigung erscheint der Klingelbildschirm nicht bei gesperrtem Display. Tippen zum Erlauben.</string>
+    <string name="check_battery_optimized">Akku-Optimierung ist aktiv</string>
+    <string name="check_battery_optimized_summary">Das System kann die App im Hintergrund beenden, dann geht das Klingeln verloren. Tippen und unter Akku „Nicht eingeschränkt“ wählen.</string>
+    <string name="check_snackbar">Einrichtung unvollständig – Klingeln kommt evtl. nicht an</string>
+    <string name="btn_check">Prüfen</string>
 </resources>

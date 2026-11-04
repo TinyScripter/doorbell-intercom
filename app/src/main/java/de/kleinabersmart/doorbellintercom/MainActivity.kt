@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
+import com.google.android.material.snackbar.Snackbar
 import de.kleinabersmart.doorbellintercom.databinding.ActivityMainBinding
 
 /**
@@ -31,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var intercom: IntercomControls
     private var preparingConnection = false
     private var openingSettings = false
+    private var systemCheckSnackbar: Snackbar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,12 +71,37 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == R.id.action_settings) {
-            // Der Tunnel bleibt beim Wechsel in die Einstellungen bestehen.
-            openingSettings = true
-            startActivity(Intent(this, SettingsActivity::class.java))
+            openSettings()
             return true
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun openSettings() {
+        // Der Tunnel bleibt beim Wechsel in die Einstellungen bestehen.
+        openingSettings = true
+        startActivity(Intent(this, SettingsActivity::class.java))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // In onResume, damit auch die Antwort auf die Berechtigungsabfrage berücksichtigt wird.
+        showSystemCheckHint()
+    }
+
+    /** Fehlt eine Voraussetzung fürs Klingeln, ein Hinweis mit Weg in die Einstellungen (siehe SystemCheck). */
+    private fun showSystemCheckHint() {
+        if (SystemCheck.issues(this).isEmpty()) {
+            systemCheckSnackbar?.dismiss()
+            systemCheckSnackbar = null
+            return
+        }
+        if (systemCheckSnackbar?.isShownOrQueued == true) return
+        // Nicht dauerhaft: es soll das Live-Bild nicht verdecken, kommt aber bei jedem Öffnen wieder.
+        systemCheckSnackbar = Snackbar.make(binding.root, R.string.check_snackbar, SYSTEM_CHECK_HINT_MS)
+            .setAnchorView(binding.bottomBar)
+            .setAction(R.string.btn_check) { openSettings() }
+            .also { it.show() }
     }
 
     override fun onStart() {
@@ -167,5 +194,9 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == 200) {
             prepareConnectionAndStartLiveView()
         }
+    }
+
+    private companion object {
+        const val SYSTEM_CHECK_HINT_MS = 8000
     }
 }

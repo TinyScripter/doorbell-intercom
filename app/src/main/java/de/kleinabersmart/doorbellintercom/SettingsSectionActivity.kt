@@ -24,8 +24,8 @@ abstract class SettingsSectionActivity : SettingsBaseActivity() {
         baseline = snapshot()
     }
 
-    /** Gerätename steht nicht im Export (siehe AppConfig), gehört aber zu den Einstellungen. */
-    private fun snapshot() = config.exportToJson() + "\n" + config.deviceName
+    /** Einstellungen samt Gerätedaten (Gerätename, Klingelton), siehe AppConfig.snapshot. */
+    private fun snapshot() = config.snapshot()
 
     /**
      * Auch bei onPause (z. B. beim Öffnen des Klingelton-Dialogs oder wenn die App im

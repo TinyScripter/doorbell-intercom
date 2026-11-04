@@ -141,7 +141,19 @@
     <string name="service_mqtt_connecting">connecting to MQTT broker …</string>
     <string name="service_mqtt_connected">connected, waiting for doorbell event</string>
     <string name="service_mqtt_disconnected">connection lost – retrying …</string>
-    <string name="service_mqtt_failed_retry">connection failed: %1$s – retrying in 10 s</string>
+    <string name="service_mqtt_failed_retry">connection failed: %1$s – retrying in %2$d s</string>
     <string name="service_mqtt_gave_up">MQTT gave up: %1$s – will retry on network change or app start</string>
     <string name="service_mqtt_subscribe_failed">subscription failed: %1$s</string>
+    <string name="service_offline_wifi_not_home">Wi-Fi without internet, MQTT broker not reachable there – ringing via push</string>
+
+    <!-- Systemcheck: Voraussetzungen, ohne die das Klingeln nicht zuverlässig ankommt -->
+    <string name="check_title">Setup check</string>
+    <string name="check_notifications_off">Notifications are turned off</string>
+    <string name="check_notifications_off_summary">Without them the phone does not ring. Tap to turn them on.</string>
+    <string name="check_full_screen_off">Full-screen call screen not allowed</string>
+    <string name="check_full_screen_off_summary">Without this permission the call screen does not appear on a locked display. Tap to allow it.</string>
+    <string name="check_battery_optimized">Battery optimisation is on</string>
+    <string name="check_battery_optimized_summary">The system may stop the app in the background and rings get lost. Tap, then set Battery to Unrestricted.</string>
+    <string name="check_snackbar">Setup incomplete – ringing may not arrive</string>
+    <string name="btn_check">Check</string>
 </resources>

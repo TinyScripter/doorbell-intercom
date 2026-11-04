@@ -25,7 +25,10 @@ import androidx.core.app.NotificationCompat
  *   nicht bestätigen), kann Home Assistant keinen Push schicken – dann
  *   übernimmt MQTT. Ob das WLAN das Heimnetz ist, entscheidet allein die
  *   Erreichbarkeit des Brokers, dafür ist kein SSID-Abgleich (und damit keine
- *   Standort-Berechtigung) nötig.
+ *   Standort-Berechtigung) nötig. Ist der Broker dort nach einigen Versuchen
+ *   nie erreichbar (fremdes WLAN, z. B. im Auto), wird die Bindung gelöst –
+ *   sonst liefen alle Verbindungen der App ins Leere –, und das Klingeln
+ *   kommt per Push über Mobilfunk.
  * - Mit Internet kommt das Klingeln per Push, MQTT ist dann pausiert und der
  *   Dienst wartet nur ereignisgesteuert auf Netzwerkwechsel.
  * - Ist der Push gar nicht eingerichtet (keine Registrierungs-URL), läuft MQTT
@@ -46,6 +49,13 @@ class DoorbellForegroundService : Service() {
     // Wird nur auf dem Main-Thread gelesen/geschrieben (Callback läuft über handler).
     private val wifiNetworks = mutableMapOf<Network, NetworkCapabilities>()
 
+    /**
+     * WLANs ohne Internet, in denen der Broker nie erreichbar war – also nicht das Heimnetz.
+     * Gilt, bis das WLAN getrennt wird oder der Dienst neu gestartet wird (App-Start,
+     * Speichern der Einstellungen). Nur auf dem Main-Thread.
+     */
+    private val foreignNetworks = mutableSetOf<Network>()
+
     @Volatile
     private var current = Mode(mqtt = false, bindTo = null)
 
@@ -59,6 +69,7 @@ class DoorbellForegroundService : Service() {
 
         override fun onLost(network: Network) {
             wifiNetworks.remove(network)
+            foreignNetworks.remove(network)
             scheduleModeUpdate()
         }
     }
@@ -83,13 +94,16 @@ class DoorbellForegroundService : Service() {
     // Zugangsdaten sofort greifen.
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         handler.removeCallbacks(applyModeRunnable)
+        // Geänderte Broker-Daten könnten ein bisher "fremdes" WLAN doch erreichbar machen.
+        foreignNetworks.clear()
         applyMode(force = true)
         return START_STICKY
     }
 
     /** WLAN, über das kein Push ankommen kann; Captive Portals sind fremde Hotspots. */
-    private fun offlineWifi(): Network? = wifiNetworks.entries.firstOrNull { (_, caps) ->
-        !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
+    private fun offlineWifi(): Network? = wifiNetworks.entries.firstOrNull { (network, caps) ->
+        network !in foreignNetworks &&
+            !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
             !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL)
     }?.key
 
@@ -147,6 +161,7 @@ class DoorbellForegroundService : Service() {
         }
         updateNotification(withReason(getString(R.string.service_mqtt_connecting)))
 
+        val boundNetwork = current.bindTo
         mqttClient = MqttClientWrapper(
             context = this,
             host = config.mqttHost,
@@ -167,19 +182,31 @@ class DoorbellForegroundService : Service() {
                     )
                 )
             },
-            onConnectFailed = { reason, willRetry ->
+            onConnectFailed = { reason, retryInSeconds ->
                 updateNotification(
                     withReason(
-                        getString(
-                            if (willRetry) R.string.service_mqtt_failed_retry
-                            else R.string.service_mqtt_gave_up,
-                            reason
-                        )
+                        if (retryInSeconds != null) {
+                            getString(R.string.service_mqtt_failed_retry, reason, retryInSeconds.toInt())
+                        } else {
+                            getString(R.string.service_mqtt_gave_up, reason)
+                        }
                     )
                 )
-            }
+            },
+            // Ohne Bindung (Push nicht eingerichtet) ist MQTT der einzige Weg: nie aufgeben.
+            maxAttemptsUntilFirstConnect = if (boundNetwork != null) MAX_ATTEMPTS_OFFLINE_WIFI else null,
+            onGaveUp = { handler.post { onBrokerUnreachable(boundNetwork) } }
         )
         mqttClient?.connect(config.mqttTopic)
+    }
+
+    /** Der Broker war im gebundenen WLAN nie erreichbar: kein Heimnetz, Bindung lösen. */
+    private fun onBrokerUnreachable(network: Network?) {
+        if (network == null || current.bindTo != network) return
+        Log.i(TAG, "Broker im WLAN ohne Internet nicht erreichbar – kein Heimnetz, löse Bindung")
+        foreignNetworks.add(network)
+        applyMode(force = false)
+        if (!current.mqtt) updateNotification(getString(R.string.service_offline_wifi_not_home))
     }
 
     private fun withReason(text: String): String {
@@ -232,6 +259,8 @@ class DoorbellForegroundService : Service() {
         private const val CHANNEL_ID_SERVICE = "doorbell_service"
         private const val ACTIVATE_DELAY_MS = 10_000L
         private const val DEACTIVATE_DELAY_MS = 30_000L
+        /** Fehlversuche, nach denen ein WLAN ohne Internet nicht als Heimnetz gilt. */
+        private const val MAX_ATTEMPTS_OFFLINE_WIFI = 3
 
         fun startOrStop(context: Context) {
             val intent = Intent(context, DoorbellForegroundService::class.java)

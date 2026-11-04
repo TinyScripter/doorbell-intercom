@@ -5,10 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -125,6 +127,27 @@ class SettingsActivity : SettingsBaseActivity() {
             return
         }
         onSettingsImported()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Auch nach der Rückkehr aus den Systemeinstellungen, in denen etwas behoben wurde.
+        showSystemCheck()
+    }
+
+    private fun showSystemCheck() {
+        val issues = SystemCheck.issues(this)
+        binding.checkTitle.visibility = if (issues.isEmpty()) View.GONE else View.VISIBLE
+        binding.checkList.removeAllViews()
+        val errorColor = MaterialColors.getColor(binding.checkTitle, androidx.appcompat.R.attr.colorError)
+        for (issue in issues) {
+            val entry = ItemSettingsEntryBinding.inflate(layoutInflater, binding.checkList, false)
+            entry.entryTitle.setText(issue.title)
+            entry.entryTitle.setTextColor(errorColor)
+            entry.entrySummary.setText(issue.summary)
+            entry.root.setOnClickListener { SystemCheck.openFix(this, issue) }
+            binding.checkList.addView(entry.root)
+        }
     }
 
     private fun addEntry(@StringRes title: Int, @StringRes summary: Int, target: Class<*>) {
