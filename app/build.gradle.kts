@@ -10,8 +10,8 @@ android {
         applicationId = "de.kleinabersmart.doorbellintercom"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 1010
+        versionName = "1.0.1"
     }
 
     // play: nutzt Google Play Services (ML-Kit-QR-Scanner, keine Kamera-Berechtigung).
