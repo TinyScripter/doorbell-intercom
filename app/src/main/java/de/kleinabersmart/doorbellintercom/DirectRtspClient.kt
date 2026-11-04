@@ -207,12 +207,7 @@ class DirectRtspClient(
         listOfNotNull(video, audio).forEach { catchUp(it, logStatus) }
     }
 
-    /**
-     * Holt Rückstand zum Live-Bild durch leicht beschleunigte Wiedergabe auf (Tonhöhe
-     * bleibt gleich). Hysterese, damit nicht ständig zwischen den Geschwindigkeiten
-     * gewechselt wird: beschleunigen ab CATCH_UP_START_MS über dem Ziel, zurück auf
-     * normal erst, wenn das Ziel bis auf CATCH_UP_STOP_MS erreicht ist.
-     */
+    /** Holt Rückstand zum Live-Bild durch leicht beschleunigte Wiedergabe auf (Tonhöhe bleibt gleich). */
     private fun catchUp(stream: Stream, logStatus: Boolean) {
         val player = stream.player
         if (player.playbackState != Player.STATE_READY || !player.isPlaying) return
@@ -223,12 +218,7 @@ class DirectRtspClient(
                 "Geschwindigkeit ${stream.speed}, BUFFERING-Phasen ${stream.stallsSinceStatus}")
             stream.stallsSinceStatus = 0
         }
-        val speed = when {
-            lag > CATCH_UP_FAST_MS -> CATCH_UP_SPEED_FAST
-            lag > CATCH_UP_START_MS -> CATCH_UP_SPEED
-            lag <= CATCH_UP_STOP_MS -> 1f
-            else -> stream.speed
-        }
+        val speed = catchUpSpeed(lag, stream.speed)
         if (speed != stream.speed) {
             Log.d(TAG, "${stream.name}: Puffer $buffered ms (Ziel ${stream.targetBufferMs} ms) → Geschwindigkeit $speed")
             stream.speed = speed
@@ -289,6 +279,19 @@ class DirectRtspClient(
     }
 
     companion object {
+        /**
+         * Wiedergabegeschwindigkeit für [lagMs] über dem Zielpuffer. Hysterese, damit nicht
+         * ständig zwischen den Geschwindigkeiten gewechselt wird: beschleunigen ab
+         * CATCH_UP_START_MS über dem Ziel, zurück auf normal erst, wenn das Ziel bis auf
+         * CATCH_UP_STOP_MS erreicht ist; dazwischen bleibt [currentSpeed].
+         */
+        internal fun catchUpSpeed(lagMs: Long, currentSpeed: Float): Float = when {
+            lagMs > CATCH_UP_FAST_MS -> CATCH_UP_SPEED_FAST
+            lagMs > CATCH_UP_START_MS -> CATCH_UP_SPEED
+            lagMs <= CATCH_UP_STOP_MS -> 1f
+            else -> currentSpeed
+        }
+
         private const val TAG = "DirectRtspClient"
         private const val LOAD_BUFFER_MS = 5000
         private const val CATCH_UP_INTERVAL_MS = 500L

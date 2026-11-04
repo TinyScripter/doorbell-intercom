@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Hochformat ist gewollt (siehe Kommentar im Manifest); ab Android 16 ignoriert das
+         System die feste Ausrichtung auf großen Bildschirmen ohnehin. -->
+    <issue id="LockedOrientationActivity" severity="ignore" />
+    <issue id="DiscouragedApi">
+        <ignore regexp="screenOrientation" />
+    </issue>
+</lint>

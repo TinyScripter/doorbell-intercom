@@ -46,7 +46,7 @@ class BaichuanTalkClient(
         val soundTrack: String
     )
 
-    private data class BcHeader(
+    internal data class BcHeader(
         val cmdId: Int,
         val chId: Int,
         val headerLen: Int,
@@ -63,6 +63,96 @@ class BaichuanTalkClient(
 
     companion object {
         private const val TAG = "BaichuanTalkClient"
+
+        /**
+         * Obergrenze für bodyLen einer Antwort. Die Antworten des Talk-Pfads sind wenige KB groß;
+         * ein kaputter oder fremder Header soll keinen riesigen Puffer anlegen oder ewig lesen.
+         */
+        internal const val MAX_BODY_LEN = 1 shl 20
+
+        /** Liest und prüft einen Antwort-Header (20 oder 24 Byte) von [inp]. */
+        internal fun readHeader(inp: InputStream): BcHeader {
+            val magic = readExactly(4, inp)
+            val magicHex = magic.joinToString("") { "%02x".format(it) }
+            if (magicHex != BaichuanCrypto.HEADER_MAGIC) {
+                throw IOException("Baichuan: ungültiger Magic-Header $magicHex")
+            }
+
+            val rest = readExactly(16, inp)
+            val buf = ByteBuffer.wrap(rest).order(ByteOrder.LITTLE_ENDIAN)
+            val cmdId = buf.int
+            val bodyLenField = buf.int
+            if (bodyLenField !in 0..MAX_BODY_LEN) {
+                throw IOException("Baichuan: ungültige Body-Länge $bodyLenField")
+            }
+            val messIdBytes = ByteArray(4)
+            buf.get(messIdBytes)
+            val chId = messIdBytes[0].toInt() and 0xFF
+            val statusOrEncBytes = ByteArray(2)
+            buf.get(statusOrEncBytes)
+            val classBytes = ByteArray(2)
+            buf.get(classBytes)
+            val messageClassHex = classBytes.joinToString("") { "%02x".format(it) }
+
+            val headerLen: Int
+            when (messageClassHex) {
+                "1466" -> headerLen = 20
+                "1464", "0000" -> {
+                    headerLen = 24
+                    readExactly(4, inp) // payload_offset – für uns nicht weiter relevant
+                }
+                else -> throw IOException("Baichuan: nicht unterstützte message_class $messageClassHex")
+            }
+
+            val statusCode = (statusOrEncBytes[0].toInt() and 0xFF) or ((statusOrEncBytes[1].toInt() and 0xFF) shl 8)
+            val encTypeHex = statusOrEncBytes.joinToString("") { "%02x".format(it) }
+
+            return BcHeader(cmdId, chId, headerLen, bodyLenField, statusCode, encTypeHex)
+        }
+
+        internal fun readExactly(n: Int, inp: InputStream): ByteArray {
+            if (n == 0) return ByteArray(0)
+            val buf = ByteArray(n)
+            var off = 0
+            while (off < n) {
+                val read = inp.read(buf, off, n - off)
+                if (read == -1) throw IOException("Baichuan: Verbindung geschlossen (nur $off von $n Bytes gelesen)")
+                off += read
+            }
+            return buf
+        }
+
+        internal fun buildHeader24(cmdId: Int, chId: Int, counter: Int, bodyLen: Int, payloadOffset: Int): ByteArray {
+            val bb = ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN)
+            bb.put(hexToBytes(BaichuanCrypto.HEADER_MAGIC))
+            bb.putInt(cmdId)
+            bb.putInt(bodyLen)
+            bb.put(chId.toByte())
+            bb.put((counter and 0xFF).toByte())
+            bb.put(((counter shr 8) and 0xFF).toByte())
+            bb.put(((counter shr 16) and 0xFF).toByte())
+            bb.putShort(0) // status_code = 0000 beim Senden
+            bb.put(hexToBytes("1464"))
+            bb.putInt(payloadOffset)
+            return bb.array()
+        }
+
+        internal fun buildHeader20Legacy(cmdId: Int, chId: Int, counter: Int, bodyLen: Int): ByteArray {
+            val bb = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN)
+            bb.put(hexToBytes(BaichuanCrypto.HEADER_MAGIC))
+            bb.putInt(cmdId)
+            bb.putInt(bodyLen)
+            bb.put(chId.toByte())
+            bb.put((counter and 0xFF).toByte())
+            bb.put(((counter shr 8) and 0xFF).toByte())
+            bb.put(((counter shr 16) and 0xFF).toByte())
+            bb.put(hexToBytes("12dc"))
+            bb.put(hexToBytes("1465"))
+            return bb.array()
+        }
+
+        private fun hexToBytes(hex: String): ByteArray =
+            ByteArray(hex.length / 2) { i -> ((Character.digit(hex[i * 2], 16) shl 4) + Character.digit(hex[i * 2 + 1], 16)).toByte() }
     }
 
     fun connect(timeoutMs: Int = 5000) {
@@ -251,42 +341,7 @@ class BaichuanTalkClient(
         // Fire-and-forget: die Kamera sendet für cmd_id 202 keine Antwort.
     }
 
-    private fun readHeader(): BcHeader {
-        val inp = input ?: throw IOException("Baichuan: nicht verbunden")
-        val magic = readFully(4, inp)
-        val magicHex = magic.joinToString("") { "%02x".format(it) }
-        if (magicHex != BaichuanCrypto.HEADER_MAGIC) {
-            throw IOException("Baichuan: ungültiger Magic-Header $magicHex")
-        }
-
-        val rest = readFully(16, inp)
-        val buf = ByteBuffer.wrap(rest).order(ByteOrder.LITTLE_ENDIAN)
-        val cmdId = buf.int
-        val bodyLenField = buf.int
-        val messIdBytes = ByteArray(4)
-        buf.get(messIdBytes)
-        val chId = messIdBytes[0].toInt() and 0xFF
-        val statusOrEncBytes = ByteArray(2)
-        buf.get(statusOrEncBytes)
-        val classBytes = ByteArray(2)
-        buf.get(classBytes)
-        val messageClassHex = classBytes.joinToString("") { "%02x".format(it) }
-
-        val headerLen: Int
-        when (messageClassHex) {
-            "1466" -> headerLen = 20
-            "1464", "0000" -> {
-                headerLen = 24
-                readFully(4, inp) // payload_offset – für uns nicht weiter relevant
-            }
-            else -> throw IOException("Baichuan: nicht unterstützte message_class $messageClassHex")
-        }
-
-        val statusCode = (statusOrEncBytes[0].toInt() and 0xFF) or ((statusOrEncBytes[1].toInt() and 0xFF) shl 8)
-        val encTypeHex = statusOrEncBytes.joinToString("") { "%02x".format(it) }
-
-        return BcHeader(cmdId, chId, headerLen, bodyLenField, statusCode, encTypeHex)
-    }
+    private fun readHeader(): BcHeader = readHeader(input ?: throw IOException("Baichuan: nicht verbunden"))
 
     private fun decryptResponseBody(header: BcHeader, sentEncType: EncType, encBody: ByteArray): String {
         if (encBody.isEmpty()) return ""
@@ -325,49 +380,8 @@ class BaichuanTalkClient(
         }
     }
 
-    private fun readFully(n: Int, inp: InputStream = input ?: throw IOException("Baichuan: nicht verbunden")): ByteArray {
-        if (n == 0) return ByteArray(0)
-        val buf = ByteArray(n)
-        var off = 0
-        while (off < n) {
-            val read = inp.read(buf, off, n - off)
-            if (read == -1) throw IOException("Baichuan: Verbindung geschlossen (nur $off von $n Bytes gelesen)")
-            off += read
-        }
-        return buf
-    }
-
-    private fun buildHeader24(cmdId: Int, chId: Int, counter: Int, bodyLen: Int, payloadOffset: Int): ByteArray {
-        val bb = ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN)
-        bb.put(hexToBytes(BaichuanCrypto.HEADER_MAGIC))
-        bb.putInt(cmdId)
-        bb.putInt(bodyLen)
-        bb.put(chId.toByte())
-        bb.put((counter and 0xFF).toByte())
-        bb.put(((counter shr 8) and 0xFF).toByte())
-        bb.put(((counter shr 16) and 0xFF).toByte())
-        bb.putShort(0) // status_code = 0000 beim Senden
-        bb.put(hexToBytes("1464"))
-        bb.putInt(payloadOffset)
-        return bb.array()
-    }
-
-    private fun buildHeader20Legacy(cmdId: Int, chId: Int, counter: Int, bodyLen: Int): ByteArray {
-        val bb = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN)
-        bb.put(hexToBytes(BaichuanCrypto.HEADER_MAGIC))
-        bb.putInt(cmdId)
-        bb.putInt(bodyLen)
-        bb.put(chId.toByte())
-        bb.put((counter and 0xFF).toByte())
-        bb.put(((counter shr 8) and 0xFF).toByte())
-        bb.put(((counter shr 16) and 0xFF).toByte())
-        bb.put(hexToBytes("12dc"))
-        bb.put(hexToBytes("1465"))
-        return bb.array()
-    }
-
-    private fun hexToBytes(hex: String): ByteArray =
-        ByteArray(hex.length / 2) { i -> ((Character.digit(hex[i * 2], 16) shl 4) + Character.digit(hex[i * 2 + 1], 16)).toByte() }
+    private fun readFully(n: Int): ByteArray =
+        readExactly(n, input ?: throw IOException("Baichuan: nicht verbunden"))
 
     private fun xmlValue(xml: String, tag: String): String? =
         Regex("<$tag>([^<]*)</$tag>").find(xml)?.groupValues?.get(1)

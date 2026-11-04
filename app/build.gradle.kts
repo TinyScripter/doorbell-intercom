@@ -1,5 +1,15 @@
 plugins {
-    id("com.android.application")
+    alias(libs.plugins.android.application)
+}
+
+// Versionsschema: versionCode = major * 1000 + minor * 100 + patch * 10, die letzte Stelle
+// bleibt frei für Nachbauten derselben Version. Minor und Patch daher jeweils höchstens 9.
+val appVersion = "1.0.1"
+
+fun versionCodeOf(version: String): Int {
+    val (major, minor, patch) = version.split(".").map(String::toInt)
+    require(minor in 0..9 && patch in 0..9) { "Minor und Patch müssen 0..9 sein (Versionsschema): $version" }
+    return major * 1000 + minor * 100 + patch * 10
 }
 
 android {
@@ -10,8 +20,8 @@ android {
         applicationId = "de.kleinabersmart.doorbellintercom"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1010
-        versionName = "1.0.1"
+        versionCode = versionCodeOf(appVersion)
+        versionName = appVersion
     }
 
     // play: nutzt Google Play Services (ML-Kit-QR-Scanner, keine Kamera-Berechtigung).
@@ -31,16 +41,15 @@ android {
         }
     }
 
-    signingConfigs {
-        create("release") {
-            // Werte kommen aus ~/.gradle/gradle.properties (nicht im Repo)
-            val storeFilePath = providers.gradleProperty("releaseStoreFile").orNull
-            if (storeFilePath != null) {
-                storeFile = file(storeFilePath)
-                storePassword = providers.gradleProperty("releaseStorePassword").get()
-                keyAlias = providers.gradleProperty("intercomKeyAlias").get()
-                keyPassword = providers.gradleProperty("intercomKeyPassword").get()
-            }
+    // Werte kommen aus ~/.gradle/gradle.properties (nicht im Repo). Fehlen sie, entsteht ein
+    // unsigniertes Release-APK (z. B. für F-Droid, das selbst signiert) statt eines Fehlers
+    // erst beim Packen.
+    val releaseSigning = providers.gradleProperty("releaseStoreFile").orNull?.let { storeFilePath ->
+        signingConfigs.create("release") {
+            storeFile = file(storeFilePath)
+            storePassword = providers.gradleProperty("releaseStorePassword").get()
+            keyAlias = providers.gradleProperty("intercomKeyAlias").get()
+            keyPassword = providers.gradleProperty("intercomKeyPassword").get()
         }
     }
 
@@ -51,8 +60,16 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            // R8: HiveMQ bringt Netty und RxJava mit, ohne Shrinking ist das APK unnötig groß.
+            // Eigene Regeln (HiveMQ/Netty, Log.d/v entfernen) in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
+            } else {
+                logger.lifecycle("releaseStoreFile nicht gesetzt – Release-APK wird unsigniert gebaut")
+            }
         }
     }
 
@@ -72,6 +89,27 @@ android {
         generateLocaleConfig = true
     }
 
+    lint {
+        // Fehler brechen jeden Build ab, auch Release-Builds; Ausnahmen mit Begründung in lint.xml.
+        abortOnError = true
+        checkReleaseBuilds = true
+        lintConfig = file("lint.xml")
+    }
+
+    testOptions {
+        unitTests {
+            // Robolectric braucht die App-Ressourcen (Strings, Manifest).
+            isIncludeAndroidResources = true
+            // android.util.Log in reinen JVM-Tests (Baichuan) liefert 0 statt zu werfen.
+            isReturnDefaultValues = true
+            all {
+                // Robolectric (SDK 36) greift per Reflection auf jdk.internal.access zu, das neuere
+                // JDKs (hier 25) sonst nicht freigeben: "Failed to interact with raw FileDescriptor".
+                it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+            }
+        }
+    }
+
     packaging {
         resources {
             // Mehrere Netty-Jars (transitive Abhängigkeit von hivemq-mqtt-client)
@@ -85,32 +123,37 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("com.google.android.material:material:1.13.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.constraintlayout)
 
     // Direkter RTSP-Video-/Audiozugriff auf die Kamera – Googles offizielles
     // ExoPlayer-RTSP-Modul (offener Standard, kein Reverse-Engineering).
-    implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("androidx.media3:media3-exoplayer-rtsp:1.8.0")
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.rtsp)
     // Für PlayerView (seitenverhältnis-korrekte Video-Darstellung)
-    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation(libs.androidx.media3.ui)
 
     // Reiner Java/Kotlin-MQTT-Client, kein veralteter Android-Service-Wrapper nötig
-    implementation("com.hivemq:hivemq-mqtt-client:1.3.10")
+    implementation(libs.hivemq.mqtt.client)
 
     // Pushweg über UnifiedPush (z. B. mit der ntfy-App als Verteiler): kein eigenes
     // Cloud-Projekt nötig, Home Assistant schickt einfach ein HTTP-POST an die Endpoint-URL.
-    implementation("org.unifiedpush.android:connector:3.3.5")
+    implementation(libs.unifiedpush.connector)
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation(libs.kotlinx.coroutines.android)
     // lifecycleScope: Coroutines der Activities enden mit dem Bildschirm.
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // QR-Code für den Einstellungs-Transfer: zxing erzeugt ihn (alle Varianten); eingelesen
     // wird er je nach Variante über den ML-Kit-Scanner (play) oder zxing-embedded (free).
-    implementation("com.google.zxing:core:3.5.4")
-    "playImplementation"("com.google.android.gms:play-services-code-scanner:16.1.0")
-    "freeImplementation"("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation(libs.zxing.core)
+    "playImplementation"(libs.play.services.code.scanner)
+    "freeImplementation"(libs.zxing.android.embedded)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -328,17 +328,40 @@ Notes:
 
 ## 7. Building from source
 
-Requirements: a recent Android Studio and JDK 17.
+Requirements: a recent Android Studio. The Gradle wrapper is part of the
+repository; Gradle runs on JetBrains Runtime 25 and downloads it itself if it
+is missing (`gradle/gradle-daemon-jvm.properties`).
 
-1. Open this folder in Android Studio (**File → Open**). It creates the Gradle
-   wrapper (`gradlew`) on first open; otherwise run `gradle wrapper
-   --gradle-version 8.7` once.
+1. Open this folder in Android Studio (**File → Open**).
 2. Build and run the `app` module. The **debug** build installs next to the
    release build (application ID suffix `.debug`, red name suffix and a red
    icon with a hammer). Their settings are separate.
-3. For a **release** build, put the signing values in `~/.gradle/gradle.properties`
-   (not in the repository): `releaseStoreFile`, `releaseStorePassword`,
-   `intercomKeyAlias`, `intercomKeyPassword`.
+3. For a signed **release** build, put the signing values in
+   `~/.gradle/gradle.properties` (not in the repository): `releaseStoreFile`,
+   `releaseStorePassword`, `intercomKeyAlias`, `intercomKeyPassword`. Without
+   them the release APK is built unsigned (for example for F-Droid).
+
+Release builds are shrunk with R8 (`app/proguard-rules.pro`), which also
+removes debug log lines. Keep `app/build/outputs/mapping/<variant>/mapping.txt`
+of every published release to read its crash stack traces.
+
+Dependency versions are in `gradle/libs.versions.toml`. The version is set
+once as `appVersion` in `app/build.gradle.kts`; the version code follows from
+it (`major * 1000 + minor * 100 + patch * 10`, so 1.0.1 is 1010).
+
+### Tests
+
+```
+./gradlew :app:testFreeDebugUnitTest            # unit tests (JVM and Robolectric)
+./gradlew :app:lintFreeDebug                    # lint, fails on errors (exceptions: app/lint.xml)
+python3 -m unittest discover -s tools/homeassistant/tests   # AppDaemon app
+```
+
+The unit tests cover the Baichuan protocol (encryption and ADPCM against
+reference values computed independently in Python, header parsing), settings
+export/import and migration, the call state (deduplication, timeout, ring
+during a call) and the catch-up logic of the live picture. They need no
+device. The AppDaemon tests need neither AppDaemon nor pytest.
 
 The push uses the UnifiedPush connector library
 (`org.unifiedpush.android:connector` from Maven Central). No Google Services
@@ -385,15 +408,17 @@ app/src/main/java/de/kleinabersmart/doorbellintercom/
   DoorbellPushService.kt         Push receiver (UnifiedPush)
   PushRegistrar.kt               Registers the endpoint with Home Assistant (AppDaemon)
   WireGuardTunnel.kt             Brings the WireGuard tunnel up/down on demand (intent to the WireGuard app)
-  BootReceiver.kt                Restarts the service after a reboot
+  BootReceiver.kt                Restarts the service after a reboot or an app update
   WindowInsetsExt.kt             Helpers for edge-to-edge insets
   baichuan/
     BaichuanTalkClient.kt        Baichuan TCP client: login, talk session
     BaichuanTalkSession.kt       Connects microphone capture to the client
     BaichuanCrypto.kt            AES/XOR encryption of the protocol
     BaichuanAdpcm.kt             IMA-ADPCM encoder + BcMedia framing
+app/src/test/                    Unit tests (JUnit, Robolectric)
 tools/homeassistant/
   appdaemon/doorbell_push.py     AppDaemon app: device list, registration endpoint, push
+  tests/test_doorbell_push.py    Tests for the AppDaemon app (unittest)
   send_doorbell_push.py          Test script: ring a single endpoint
 ```
 
