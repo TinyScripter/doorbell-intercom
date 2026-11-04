@@ -33,9 +33,20 @@ Endpunkt (in der App unter "Registrierungs-URL" eintragen):
 
   POST {"device": "<Gerätename>", "endpoint": "<Endpoint-URL>"}  Gerät anlegen/aktualisieren
   POST {"device": "<Gerätename>", "action": "unregister"}      Gerät entfernen
-  POST {"device": "<Gerätename>", "action": "answered"}        Anruf angenommen: alle ANDEREN Geräte hören auf zu klingeln
+  POST {"device": "<Gerätename>", "action": "answered", "id": "<Ring-ID>"}
+                                                              Anruf angenommen: alle ANDEREN Geräte hören auf zu klingeln
   POST {"action": "ring"}                                       Test: alle Geräte klingeln lassen (ohne "device")
   GET                                                         Geräteliste (ohne Endpoint-URLs)
+
+Push-Nachrichten an die Handys:
+
+  {"type": "doorbell_ring", "id": "<Ring-ID>"}
+  {"type": "doorbell_answered", "answered_by": "<Gerätename>", "id": "<Ring-ID>"}
+
+Die Ring-ID ist last_changed der trigger_entity. Schickt die MQTT-Automation
+dieselbe ID mit (siehe README, Abschnitt 4.1), zeigt die App ein Klingeln, das
+über beide Wege ankommt, genau einmal – und ein zweites echtes Klingeln kurz
+danach trotzdem. "answered" beendet auf den anderen Handys nur dieses Klingeln.
 
 AppDaemon lässt für registrierte Endpunkte nur GET und POST zu (DELETE wird mit
 HTTP 405 abgewiesen), daher läuft auch das Entfernen über POST.
@@ -67,7 +78,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 
 from appdaemon.plugins.hass import Hass
 
@@ -103,7 +114,8 @@ class DoorbellPush(Hass):
         # Callbacks erst hier registrieren, nicht in __init__: die
         # Plugin-Verbindung steht erst nach dem Start von initialize().
         self.register_endpoint(self.on_request, ENDPOINT_NAME)
-        self.listen_state(self.on_ring, self.args["trigger_entity"], new="on")
+        # attribute="all": der Callback bekommt den ganzen Zustand samt last_changed (Ring-ID).
+        self.listen_state(self.on_ring, self.args["trigger_entity"], attribute="all")
         self.log(f"{len(self._load_devices())} Gerät(e) registriert")
 
     # --- Geräteliste -------------------------------------------------------
@@ -160,7 +172,8 @@ class DoorbellPush(Hass):
         if isinstance(body, dict) and body.get("action") == "ring":
             # Im Hintergrund: der Endpunkt läuft im Event-Loop, HTTP-Aufrufe blockieren.
             self.log("Test-Klingeln über den Endpunkt ausgelöst")
-            threading.Thread(target=self.on_ring, args=(None, None, None, None), daemon=True).start()
+            ring_id = datetime.now(timezone.utc).isoformat()
+            threading.Thread(target=self._ring, args=(ring_id,), daemon=True).start()
             return {"status": "ok"}, 200
         try:
             device = str(body["device"]).strip()
@@ -173,8 +186,11 @@ class DoorbellPush(Hass):
         if action == "unregister":
             return self._unregister(device)
         if action == "answered":
+            ring_id = body.get("id")
+            if not isinstance(ring_id, str) or len(ring_id) > MAX_FIELD_LENGTH:
+                ring_id = None
             # Im Hintergrund: der Endpunkt läuft im Event-Loop, HTTP-Aufrufe blockieren.
-            threading.Thread(target=self._notify_answered, args=(device,), daemon=True).start()
+            threading.Thread(target=self._notify_answered, args=(device, ring_id), daemon=True).start()
             return {"status": "ok"}, 200
         if not self._is_http_url(endpoint) or len(endpoint) > MAX_FIELD_LENGTH:
             return {"error": "endpoint (http/https-URL) erwartet"}, 400
@@ -222,12 +238,29 @@ class DoorbellPush(Hass):
     # --- Klingeln ----------------------------------------------------------
 
     def on_ring(self, entity, attribute, old, new, **kwargs):
-        self._push({"type": "doorbell_ring"})
+        # Mit attribute="all" kommt jede Änderung, auch reine Attribut-Änderungen:
+        # nur der Wechsel nach "on" ist ein Klingeln.
+        if not isinstance(new, dict) or new.get("state") != "on":
+            return
+        if isinstance(old, dict) and old.get("state") == "on":
+            return
+        self._ring(new.get("last_changed"))
 
-    def _notify_answered(self, answered_by: str):
+    def _ring(self, ring_id):
+        data = {"type": "doorbell_ring"}
+        if ring_id:
+            # Je nach AppDaemon-Version String oder datetime; isoformat() entspricht dem
+            # Template in der MQTT-Automation.
+            data["id"] = ring_id.isoformat() if hasattr(ring_id, "isoformat") else str(ring_id)
+        self._push(data)
+
+    def _notify_answered(self, answered_by: str, ring_id: str = None):
         """Sagt allen anderen Geräten, dass jemand angenommen hat – sie hören auf zu klingeln."""
         self.log(f"\"{answered_by}\" hat angenommen")
-        self._push({"type": "doorbell_answered", "answered_by": answered_by}, exclude=answered_by)
+        data = {"type": "doorbell_answered", "answered_by": answered_by}
+        if ring_id:
+            data["id"] = ring_id
+        self._push(data, exclude=answered_by)
 
     def _push(self, data: dict, exclude: str = None):
         devices = self._load_devices()

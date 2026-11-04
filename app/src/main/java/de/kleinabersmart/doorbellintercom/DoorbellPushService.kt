@@ -15,7 +15,8 @@ import org.unifiedpush.android.connector.data.PushMessage
  * Gesendet wird von der AppDaemon-App in Home Assistant
  * (tools/homeassistant/appdaemon/doorbell_push.py) als einfaches HTTP-POST an die
  * Endpoint-URL dieses Geräts, die PushRegistrar vorher bei ihr registriert hat.
- * Der Body ist JSON mit "type" = "doorbell_ring" bzw. "doorbell_answered".
+ * Der Body ist JSON mit "type" = "doorbell_ring" bzw. "doorbell_answered" und der
+ * Ring-ID "id" (fehlt bei älteren Versionen der AppDaemon-App).
  * Der Push-Verteiler (z. B. die ntfy-App) reicht ihn an diesen Dienst weiter.
  *
  * Achtung: notify.mobile_app aus Home Assistant reicht dafür nicht – das geht
@@ -34,10 +35,12 @@ class DoorbellPushService : PushService() {
         val type = data.optString("type")
         Log.i(TAG, "Push-Nachricht empfangen (type=$type)")
 
+        val calls = appContainer.callController
+        val ringId = data.optStringOrNull("id")
         when (type) {
-            "doorbell_ring" -> IncomingCallNotifier.ring(this, source = "Push")
+            "doorbell_ring" -> calls.onRing(ringId, source = "Push")
             // Ein anderes Handy hat angenommen.
-            "doorbell_answered" -> IncomingCallNotifier.answeredElsewhere(this, data.optString("answered_by").ifBlank { null })
+            "doorbell_answered" -> calls.answeredElsewhere(ringId, data.optStringOrNull("answered_by"))
         }
     }
 

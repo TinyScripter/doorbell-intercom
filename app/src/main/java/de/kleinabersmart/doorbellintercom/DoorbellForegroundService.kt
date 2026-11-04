@@ -115,7 +115,7 @@ class DoorbellForegroundService : Service() {
 
     // Entprellt: Ein frisch verbundenes WLAN ist kurz "unbestätigt", und kurze
     // Internet-Aussetzer sollen kein ständiges Verbinden/Trennen auslösen. Beim
-    // Zurückschalten länger warten – IncomingCallNotifier filtert Doppel-Klingeln
+    // Zurückschalten länger warten – CallController filtert Doppel-Klingeln
     // aus, eine Überlappung beider Wege schadet also nicht.
     private fun scheduleModeUpdate() {
         handler.removeCallbacks(applyModeRunnable)
@@ -170,7 +170,7 @@ class DoorbellForegroundService : Service() {
             password = config.mqttPassword,
             onMessage = { topic, payload ->
                 Log.i(TAG, "MQTT-Nachricht auf $topic empfangen: \"$payload\"")
-                IncomingCallNotifier.ring(this, source = "MQTT")
+                appContainer.callController.onRing(CallController.ringIdFromPayload(payload), source = "MQTT")
             },
             onConnectionChanged = { connected ->
                 updateNotification(

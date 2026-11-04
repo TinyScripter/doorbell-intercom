@@ -6,19 +6,19 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 
-/** Buttons und Wegwischen der Klingel-Benachrichtigung (siehe IncomingCallNotifier). */
+/** Buttons und Wegwischen der Klingel-Benachrichtigung (siehe IncomingCallNotifier und CallController). */
 class CallActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            ACTION_DECLINE -> IncomingCallNotifier.declineFromNotification(context)
+            ACTION_DECLINE -> context.appContainer.callController.decline(CallController.SOURCE_NOTIFICATION)
             ACTION_OPEN_DOOR -> openDoor(context)
         }
     }
 
     private fun openDoor(context: Context) {
         val appContext = context.applicationContext
-        IncomingCallNotifier.doorOpenedFromNotification(appContext)
+        appContext.appContainer.callController.doorOpened(CallController.SOURCE_NOTIFICATION)
         val url = AppConfig(appContext).doorOpenUrl
         if (url.isBlank()) return
         // Hält den Prozess am Leben, bis der Webhook geantwortet hat.

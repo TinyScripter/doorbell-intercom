@@ -101,6 +101,10 @@ class AppConfig(context: Context) {
         get() = prefs.getString(KEY_CAMERA_RTSP_PATH, "h264Preview_01_main") ?: "h264Preview_01_main"
         set(value) = prefs.edit().putString(KEY_CAMERA_RTSP_PATH, value).apply()
 
+    /** RTSP-Adresse des Live-Bilds samt Zugangsdaten (Port 554 ist bei Reolink fest). */
+    fun rtspUrl(): String =
+        "rtsp://${Uri.encode(cameraUsername)}:${Uri.encode(cameraPassword)}@$cameraHost:554/$cameraRtspPath"
+
     /** Seitenverhältnis beim Video beibehalten (Letterboxing) statt zu verzerren. */
     var keepAspectRatio: Boolean
         get() = prefs.getBoolean(KEY_KEEP_ASPECT_RATIO, true)

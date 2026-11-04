@@ -3,7 +3,6 @@ package de.kleinabersmart.doorbellintercom
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.Menu
@@ -11,7 +10,6 @@ import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
 import com.google.android.material.snackbar.Snackbar
 import de.kleinabersmart.doorbellintercom.databinding.ActivityMainBinding
 
@@ -28,9 +26,8 @@ import de.kleinabersmart.doorbellintercom.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private var rtspClient: DirectRtspClient? = null
+    private lateinit var liveView: LiveViewController
     private lateinit var intercom: IntercomControls
-    private var preparingConnection = false
     private var openingSettings = false
     private var systemCheckSnackbar: Snackbar? = null
 
@@ -44,6 +41,12 @@ class MainActivity : AppCompatActivity() {
         binding.bottomBar.applyBottomSystemInset()
         PinchZoomController.attach(binding.videoView)
 
+        liveView = LiveViewController(
+            activity = this,
+            playerView = binding.videoView,
+            onStatus = { message -> binding.statusText.text = message },
+            reportConnection = true
+        )
         intercom = IntercomControls(
             context = this,
             onStatus = { message -> binding.statusText.text = message },
@@ -52,7 +55,7 @@ class MainActivity : AppCompatActivity() {
                 binding.btnTalk.showTalkState(talking)
                 if (!talking) binding.talkStatusText.text = ""
             },
-            onSpeakingChanged = { speaking -> rtspClient?.setDucked(speaking) }
+            onSpeakingChanged = liveView::setDucked
         )
         binding.btnTalk.setOnClickListener { intercom.toggleTalk() }
         binding.btnDoorOpen.setOnClickListener { intercom.openDoor() }
@@ -107,64 +110,15 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         openingSettings = false
-        prepareConnectionAndStartLiveView()
+        binding.btnTalk.showTalkState(false)
+        liveView.start()
     }
 
     override fun onStop() {
         super.onStop()
         intercom.stopTalk()
-        stopLiveView()
-        if (!openingSettings) WireGuardTunnel.release(applicationContext, this)
-    }
-
-    /**
-     * Baut außerhalb des Heimnetzes zuerst den VPN-Tunnel auf (siehe WireGuardTunnel),
-     * bevor das Live-Bild startet.
-     */
-    private fun prepareConnectionAndStartLiveView() {
-        if (preparingConnection || rtspClient != null) return
-        preparingConnection = true
-        WireGuardTunnel.prepareAsync(
-            owner = this,
-            onStartingTunnel = { binding.statusText.text = getString(R.string.status_vpn_connecting) },
-            onDone = {
-                preparingConnection = false
-                if (!isDestroyed && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) startLiveView()
-            }
-        )
-    }
-
-    private fun startLiveView() {
-        val config = AppConfig(this)
-        binding.btnTalk.showTalkState(false)
-
-        if (config.cameraHost.isBlank()) {
-            binding.statusText.text = getString(R.string.status_camera_not_configured)
-            return
-        }
-        if (rtspClient != null) return
-
-        val rtspUrl = "rtsp://${Uri.encode(config.cameraUsername)}:${Uri.encode(config.cameraPassword)}" +
-            "@${config.cameraHost}:554/${config.cameraRtspPath}"
-
-        binding.statusText.text = getString(R.string.status_connecting)
-        val client = DirectRtspClient(
-            context = this,
-            rtspUrl = rtspUrl,
-            playerView = binding.videoView,
-            keepAspectRatio = config.keepAspectRatio,
-            startBufferMs = config.videoStartBufferMs,
-            rebufferMs = config.videoRebufferMs,
-            onConnected = { binding.statusText.text = getString(R.string.status_connected) },
-            onError = { message -> binding.statusText.text = message }
-        )
-        client.start()
-        rtspClient = client
-    }
-
-    private fun stopLiveView() {
-        rtspClient?.stop()
-        rtspClient = null
+        liveView.stop()
+        if (!openingSettings) liveView.releaseVpn()
     }
 
     private fun requestRuntimePermissions() {
@@ -192,7 +146,8 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 200) {
-            prepareConnectionAndStartLiveView()
+            // Läuft das Live-Bild schon, passiert nichts.
+            liveView.start()
         }
     }
 

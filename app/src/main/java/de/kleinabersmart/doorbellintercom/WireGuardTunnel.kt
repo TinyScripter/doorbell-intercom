@@ -1,6 +1,5 @@
 package de.kleinabersmart.doorbellintercom
 
-import android.app.Activity
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -10,9 +9,13 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.SystemClock
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Baut beim Klingeln bei Bedarf den WireGuard-Tunnel auf und danach wieder ab –
@@ -50,48 +53,33 @@ object WireGuardTunnel {
     private var startedByApp = false
 
     /**
-     * Bildschirme, die den Tunnel gerade brauchen (Klingelbildschirm, Hauptbildschirm).
-     * Getrennt wird erst, wenn der letzte fertig ist – sonst würde das Ende eines Anrufs
-     * dem geöffneten Hauptbildschirm den Tunnel wegnehmen.
+     * Bildschirme, die den Tunnel gerade brauchen (Klingelbildschirm, Hauptbildschirm), als
+     * eigenes Token-Objekt je Bildschirm (siehe LiveViewController) – eindeutig und ohne die
+     * Activity selbst festzuhalten. Getrennt wird erst, wenn der letzte fertig ist – sonst
+     * würde das Ende eines Anrufs dem geöffneten Hauptbildschirm den Tunnel wegnehmen.
      */
-    private val owners = mutableSetOf<Int>()
+    private val owners = mutableSetOf<Any>()
 
     /**
      * Stellt für [owner] sicher, dass die Kamera erreichbar ist, und baut dafür bei Bedarf
-     * den Tunnel auf. Danach wird [onDone] auf dem UI-Thread aufgerufen – auch ohne Erfolg;
-     * das Live-Bild meldet dann selbst den Verbindungsfehler. Ist die Funktion in den
-     * Einstellungen aus, folgt [onDone] sofort.
+     * den Tunnel auf. Kehrt danach zurück – auch ohne Erfolg; das Live-Bild meldet dann selbst
+     * den Verbindungsfehler. Ist die Funktion in den Einstellungen aus, sofort.
      *
-     * [onStartingTunnel] wird nur aufgerufen, wenn tatsächlich ein Tunnel aufgebaut wird.
-     * Das Gegenstück ist [release].
+     * Wartet bis zu TUNNEL_READY_TIMEOUT_MS; die Netzwerk-Tests laufen auf Dispatchers.IO.
+     * Gibt der Besitzer den Tunnel währenddessen schon wieder frei (App verlassen, aufgelegt)
+     * oder wird die Coroutine abgebrochen, wird nicht weiter gewartet.
+     *
+     * [onStartingTunnel] wird nur aufgerufen, wenn tatsächlich ein Tunnel aufgebaut wird, und
+     * zwar auf dem Thread des Aufrufers. Das Gegenstück ist [release].
      */
-    fun prepareAsync(owner: Activity, onStartingTunnel: () -> Unit, onDone: () -> Unit) {
-        val config = AppConfig(owner)
-        if (!config.wireguardAutoVpn) {
-            onDone()
-            return
-        }
-        val ownerId = System.identityHashCode(owner)
-        synchronized(this) { owners.add(ownerId) }
-        val appContext = owner.applicationContext
-        Thread {
-            prepare(appContext, config, ownerId) { owner.runOnUiThread(onStartingTunnel) }
-            owner.runOnUiThread(onDone)
-        }.start()
-    }
+    suspend fun prepare(context: Context, owner: Any, onStartingTunnel: () -> Unit) {
+        val config = AppConfig(context)
+        if (!config.wireguardAutoVpn) return
+        synchronized(this) { owners.add(owner) }
 
-    @Synchronized
-    private fun isOwned(ownerId: Int) = ownerId in owners
-
-    /**
-     * Blockiert bis zu TUNNEL_READY_TIMEOUT_MS, daher nur aus einem Hintergrund-Thread.
-     * Gibt der Besitzer den Tunnel währenddessen schon wieder frei (App verlassen, aufgelegt),
-     * wird nicht weiter aufgebaut – sonst bliebe ein Tunnel zurück, den niemand mehr trennt.
-     */
-    private fun prepare(context: Context, config: AppConfig, ownerId: Int, onStartingTunnel: () -> Unit) {
         val tunnel = config.wireguardTunnel
         if (tunnel.isBlank() || config.cameraHost.isBlank()) return
-        if (isReachable(config.cameraHost) || isVpnActive(context)) return
+        if (isReachableAsync(config.cameraHost) || isVpnActive(context)) return
 
         if (context.checkSelfPermission(PERMISSION_CONTROL_TUNNELS) != PackageManager.PERMISSION_GRANTED) {
             Log.w(TAG, "Berechtigung CONTROL_TUNNELS fehlt – Tunnel wird nicht aufgebaut")
@@ -102,36 +90,36 @@ object WireGuardTunnel {
         // Gemeinsam mit release() synchronisiert: entweder sieht release() den gestarteten
         // Tunnel und trennt ihn, oder er wird hier gar nicht erst gestartet.
         synchronized(this) {
-            if (ownerId !in owners) return
-            onStartingTunnel()
+            if (owner !in owners) return
             context.sendBroadcast(tunnelIntent(ACTION_TUNNEL_UP, tunnel))
             startedByApp = true
             scheduleSafetyDisconnect(context, tunnel)
         }
+        onStartingTunnel()
 
         while (SystemClock.elapsedRealtime() - startedAt < TUNNEL_READY_TIMEOUT_MS) {
-            if (!isOwned(ownerId)) return
-            if (isReachable(config.cameraHost)) {
+            if (!isOwned(owner)) return
+            if (isReachableAsync(config.cameraHost)) {
                 Log.i(TAG, "Tunnel \"$tunnel\" nach ${SystemClock.elapsedRealtime() - startedAt} ms bereit")
                 return
             }
-            try {
-                Thread.sleep(POLL_INTERVAL_MS)
-            } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
-                return
-            }
+            delay(POLL_INTERVAL_MS.milliseconds)
         }
         Log.w(TAG, "Kamera nach $TUNNEL_READY_TIMEOUT_MS ms über Tunnel \"$tunnel\" nicht erreichbar")
     }
+
+    @Synchronized
+    private fun isOwned(owner: Any) = owner in owners
+
+    private suspend fun isReachableAsync(host: String) = withContext(Dispatchers.IO) { isReachable(host) }
 
     /**
      * [owner] braucht den Tunnel nicht mehr. Baut ihn ab, falls ihn diese App aufgebaut hat
      * und kein anderer Bildschirm ihn noch braucht.
      */
     @Synchronized
-    fun release(context: Context, owner: Activity) {
-        owners.remove(System.identityHashCode(owner))
+    fun release(context: Context, owner: Any) {
+        owners.remove(owner)
         if (owners.isNotEmpty() || !startedByApp) return
         startedByApp = false
         val tunnel = AppConfig(context).wireguardTunnel

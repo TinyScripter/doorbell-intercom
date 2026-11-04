@@ -1,25 +1,25 @@
 package de.kleinabersmart.doorbellintercom
 
 import android.app.KeyguardManager
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import de.kleinabersmart.doorbellintercom.databinding.ActivityIncomingCallBinding
+import kotlinx.coroutines.launch
 
 /**
  * Vollbild-Anrufansicht beim Klingeln: zeigt sofort das Live-Bild, aber
  * stumm. Nach "Annehmen" bleibt der Stream einfach weiterlaufen und wird nur
  * laut geschaltet (kein Neuaufbau, daher nahtlos); statt Annehmen/Ablehnen
  * erscheinen Sprechen, Tür öffnen und Auflegen.
+ *
+ * Die Ansicht folgt CallController.state: Klingeln, Gespräch oder – bei Idle – schließen
+ * (abgelaufen, anderswo angenommen, in der Benachrichtigung abgelehnt). Die Buttons melden
+ * nur an den Controller; was daraufhin zu sehen ist, ergibt sich aus dem neuen Zustand.
  *
  * Bei gesperrtem Handy verlangen "Annehmen" und "Tür öffnen + Auflegen" zuerst
  * die Entsperrung, damit die Tür nicht vom Sperrbildschirm aus geöffnet werden kann.
@@ -28,35 +28,34 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityIncomingCallBinding
     private lateinit var intercom: IntercomControls
-    private var rtspClient: DirectRtspClient? = null
-    private var accepted = false
-    private var preparingConnection = false
+    private lateinit var liveView: LiveViewController
+    private lateinit var calls: CallController
 
-    /**
-     * Ein anderes Handy hat angenommen oder es wurde in der Benachrichtigung abgelehnt bzw. die
-     * Tür geöffnet: nur schließen, solange man selbst noch nicht angenommen hat.
-     */
-    private val closeReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (!accepted) finishAndRemoveTask()
-        }
-    }
+    /** Zuletzt angezeigter Zustand: nur ein Wechsel schaltet die Ansicht um (z. B. Sprechen beim Annehmen). */
+    private var shown: CallState? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityIncomingCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        calls = appContainer.callController
 
         binding.statusText.applyTopSystemInset()
         binding.bottomArea.applyBottomSystemInset()
         PinchZoomController.attach(binding.videoView)
 
-        // Auch bei gesperrtem Bildschirm anzeigen und Display einschalten
+        // Display einschalten; über dem Sperrbildschirm nur bis zum Annehmen (siehe showRinging/showCall).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
             setTurnScreenOn(true)
         }
 
+        liveView = LiveViewController(
+            activity = this,
+            playerView = binding.videoView,
+            onStatus = { message -> binding.statusText.text = message },
+            reportConnection = false,
+            muted = true
+        )
         intercom = IntercomControls(
             context = this,
             onStatus = { message -> binding.statusText.text = message },
@@ -65,19 +64,20 @@ class IncomingCallActivity : AppCompatActivity() {
                 binding.btnTalk.showTalkState(talking)
                 if (!talking) binding.talkStatusText.text = ""
             },
-            onSpeakingChanged = { speaking -> rtspClient?.setDucked(speaking) }
+            onSpeakingChanged = liveView::setDucked
         )
 
-        ContextCompat.registerReceiver(this, closeReceiver,
-            IntentFilter(IncomingCallNotifier.ACTION_CLOSE_INCOMING_CALL), ContextCompat.RECEIVER_NOT_EXPORTED)
-
         binding.btnAccept.setOnClickListener { acceptCall() }
-        binding.btnDecline.setOnClickListener { finishAndRemoveTask() }
+        binding.btnDecline.setOnClickListener { calls.decline(CallController.SOURCE_SCREEN) }
         binding.btnTalk.setOnClickListener { intercom.toggleTalk() }
         // Nach dem Annehmen ist das Handy entsperrt; runUnlocked sichert trotzdem ab.
         binding.btnDoorOpen.setOnClickListener { runUnlocked(intercom::openDoor) }
-        binding.btnHangUp.setOnClickListener { finishAndRemoveTask() }
+        binding.btnHangUp.setOnClickListener { calls.hangUp() }
         binding.btnDoorOpenAndHangUp.setOnClickListener { runUnlocked(::openDoorAndHangUp) }
+
+        // Ab CREATED statt STARTED: auch ein Klingelbildschirm im Hintergrund soll sich nach
+        // Ablauf schließen und damit den VPN-Tunnel freigeben. Der erste Wert kommt sofort.
+        lifecycleScope.launch { calls.state.collect(::render) }
 
         acceptIfRequested(intent)
     }
@@ -90,66 +90,68 @@ class IncomingCallActivity : AppCompatActivity() {
 
     /** "Annehmen" in der Klingel-Benachrichtigung öffnet diesen Bildschirm mit EXTRA_ACCEPT. */
     private fun acceptIfRequested(intent: Intent) {
-        if (intent.getBooleanExtra(EXTRA_ACCEPT, false) && !accepted) acceptCall()
+        if (intent.getBooleanExtra(EXTRA_ACCEPT, false) && calls.state.value is CallState.Ringing) acceptCall()
     }
 
     override fun onStart() {
         super.onStart()
-        prepareConnectionAndStartLiveView()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        unregisterReceiver(closeReceiver)
-        IncomingCallNotifier.stopRinging(applicationContext)
-        WireGuardTunnel.release(applicationContext, this)
-    }
-
-    /**
-     * Baut außerhalb des Heimnetzes zuerst den VPN-Tunnel auf (siehe WireGuardTunnel),
-     * bevor das Live-Bild startet – der Test auf die Kamera blockiert, daher im Hintergrund.
-     */
-    private fun prepareConnectionAndStartLiveView() {
-        if (preparingConnection || rtspClient != null) return
-        preparingConnection = true
-        WireGuardTunnel.prepareAsync(
-            owner = this,
-            onStartingTunnel = { binding.statusText.text = getString(R.string.status_vpn_connecting) },
-            onDone = {
-                preparingConnection = false
-                if (!isDestroyed && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) startLiveView()
-            }
-        )
+        calls.onCallScreenStarted()
+        liveView.start()
     }
 
     override fun onStop() {
         super.onStop()
+        calls.onCallScreenStopped()
         intercom.stopTalk()
-        rtspClient?.stop()
-        rtspClient = null
+        liveView.stop()
     }
 
-    private fun startLiveView() {
-        val config = AppConfig(this)
-        if (config.cameraHost.isBlank() || rtspClient != null) return
+    override fun onDestroy() {
+        super.onDestroy()
+        // Zurück oder Schließen aus anderem Grund: gilt als Ablehnen bzw. Auflegen.
+        if (isFinishing) calls.leave(shown?.seq)
+        liveView.releaseVpn()
+    }
 
-        val rtspUrl = "rtsp://${Uri.encode(config.cameraUsername)}:${Uri.encode(config.cameraPassword)}" +
-            "@${config.cameraHost}:554/${config.cameraRtspPath}"
+    private fun render(state: CallState) {
+        val previous = shown
+        shown = state
+        when (state) {
+            CallState.Idle -> finishAndRemoveTask()
+            is CallState.Ringing -> if (previous !is CallState.Ringing || previous.seq != state.seq) showRinging()
+            is CallState.Active -> {
+                if (previous !is CallState.Active) showCall()
+                if (state.rangAgain) binding.statusText.text = getString(R.string.status_rang_again)
+            }
+        }
+    }
 
-        val client = DirectRtspClient(
-            context = this,
-            rtspUrl = rtspUrl,
-            playerView = binding.videoView,
-            keepAspectRatio = config.keepAspectRatio,
-            // Nach dem Annehmen (z. B. wenn die Activity kurz im Hintergrund war)
-            // mit Ton neu starten, vorher stumm.
-            muted = !accepted,
-            startBufferMs = config.videoStartBufferMs,
-            rebufferMs = config.videoRebufferMs,
-            onError = { message -> binding.statusText.text = message }
-        )
-        client.start()
-        rtspClient = client
+    /** Auch nach einem liegen gelassenen Gespräch, wenn es erneut klingelt (siehe CallController.onCallScreenStarted). */
+    private fun showRinging() {
+        intercom.stopTalk()
+        liveView.muted = true
+        binding.statusText.text = getString(R.string.incoming_call_title)
+        binding.buttonBar.visibility = View.VISIBLE
+        binding.callControls.visibility = View.GONE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+        }
+    }
+
+    private fun showCall() {
+        liveView.muted = false
+        binding.statusText.text = getString(R.string.status_connected)
+        binding.buttonBar.visibility = View.GONE
+        binding.callControls.visibility = View.VISIBLE
+        // Wie beim Telefon: nach dem Annehmen ist man sofort zu hören.
+        intercom.startTalk()
+
+        // Ab jetzt nicht mehr über dem Sperrbildschirm anzeigen: sperrt man
+        // das Handy während des Gesprächs, ist "Tür öffnen" nicht mehr ohne
+        // Entsperren erreichbar.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(false)
+        }
     }
 
     /** Öffnet die Tür und legt auf; die Rückmeldung kommt als Toast, da die Ansicht gleich schließt. */
@@ -164,10 +166,11 @@ class IncomingCallActivity : AppCompatActivity() {
         DoorOpenClient.trigger(appContext, url) { _, message ->
             Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
         }
-        finishAndRemoveTask()
+        // Gilt wie in der Benachrichtigung als angenommen: die anderen Handys hören auf zu klingeln.
+        calls.doorOpened(CallController.SOURCE_SCREEN)
     }
 
-    private fun acceptCall() = runUnlocked(::onCallAccepted)
+    private fun acceptCall() = runUnlocked { calls.accept() }
 
     /**
      * Führt [action] erst aus, wenn das Handy entsperrt ist. Der Bildschirm erscheint auch
@@ -188,25 +191,6 @@ class IncomingCallActivity : AppCompatActivity() {
                 binding.statusText.text = getString(R.string.status_unlock_cancelled)
             }
         })
-    }
-
-    private fun onCallAccepted() {
-        accepted = true
-        IncomingCallNotifier.stopRinging(applicationContext)
-        PushRegistrar.reportAnswered(applicationContext)
-        rtspClient?.setMuted(false)
-        binding.statusText.text = getString(R.string.status_connected)
-        binding.buttonBar.visibility = View.GONE
-        binding.callControls.visibility = View.VISIBLE
-        // Wie beim Telefon: nach dem Annehmen ist man sofort zu hören.
-        intercom.startTalk()
-
-        // Ab jetzt nicht mehr über dem Sperrbildschirm anzeigen: sperrt man
-        // das Handy während des Gesprächs, ist "Tür öffnen" nicht mehr ohne
-        // Entsperren erreichbar.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(false)
-        }
     }
 
     companion object {

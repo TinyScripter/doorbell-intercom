@@ -91,6 +91,8 @@
     <string name="switch_silent_when_unreachable">Only a silent notice when away from home without VPN set up (camera not reachable)</string>
     <string name="channel_not_reachable">Doorbell (camera not reachable)</string>
     <string name="not_reachable_title">Doorbell rang – you are not on the home network</string>
+    <string name="channel_missed">Missed rings</string>
+    <string name="missed_title">Missed ring at %1$s</string>
     <string name="status_vpn_permission_granted">VPN control allowed</string>
     <string name="status_vpn_permission_denied">VPN control not allowed – is WireGuard installed?</string>
     <string name="status_vpn_connecting">Connecting VPN …</string>
@@ -128,6 +130,7 @@
     <string name="btn_hang_up">Hang up</string>
     <string name="btn_door_open_and_hang_up">Open door and hang up</string>
     <string name="status_unlock_cancelled">Unlock cancelled – tap again to accept</string>
+    <string name="status_rang_again">The doorbell rang again</string>
 
     <string name="channel_service_status">Service status</string>
     <string name="channel_incoming_call">Incoming doorbell call</string>

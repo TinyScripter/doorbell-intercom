@@ -28,7 +28,11 @@ home network, with no vendor cloud in between.
   declines, the others keep ringing.
 - **"Answered by" notice** (optional): the other phones show a short
   notification such as "Doorbell answered by: Pixel 10 Pro".
-- **Adjustable ringing time**: 10 to 90 seconds, default 30 seconds.
+- **Adjustable ringing time**: 10 to 90 seconds, default 30 seconds. When
+  nobody reacts in time, the call screen closes and a quiet **"Missed ring"**
+  notification with the time (and the camera snapshot, if loaded) remains.
+- **No ringing during a call**: if the doorbell rings again while you are
+  talking, the call screen only shows a hint.
 - **Automatic VPN** (optional): away from home, the app can bring up your
   WireGuard tunnel when the doorbell rings and take it down again afterwards.
 - **Settings export and import** as a JSON file (the file contains passwords
@@ -117,13 +121,22 @@ action:
   - service: mqtt.publish
     data:
       topic: "doorbell/ring"
-      payload: "ring"
+      payload: >-
+        {"type": "doorbell_ring", "id": "{{ trigger.to_state.last_changed.isoformat() }}"}
       qos: 1
 ```
 
 The topic must match the **Topic** field in the app settings. Do not publish
 with `retain: true`: the app ignores retained messages, otherwise every
 reconnect would ring again.
+
+The `id` identifies the ring. The AppDaemon app (4.2) sends the same value
+(`last_changed` of its `trigger_entity`), so the automation must be triggered by
+a state trigger on that same entity. With it the app shows a ring that arrives
+over both paths exactly once, still rings for a second press shortly after,
+and "answered" on another phone only ends that one ring. Any other payload (for
+example the old `"ring"`) still rings; the app then treats everything within
+15 seconds of the first arrival as the same ring.
 
 ### 4.2 ntfy push via AppDaemon
 
@@ -344,8 +357,10 @@ plugin or `google-services.json` is needed.
   ntfy/UnifiedPush (`DoorbellPushService.kt`) and MQTT is paused to save battery.
   In a Wi-Fi network without internet the app connects to the local MQTT broker
   after about 10 s and binds to that Wi-Fi (`DoorbellForegroundService.kt`).
-  Both ways end in `IncomingCallNotifier`, which shows the call screen once
-  (a ring that arrives on both ways within 15 s is ignored as a duplicate).
+  Both ways end in `CallController`, which holds the call state (idle,
+  ringing, active) and shows the call screen once per ring: by ring ID if Home
+  Assistant sends one (section 4.1), otherwise everything within 15 s of the
+  first arrival counts as the same ring.
 - **Push registration**: the app reports its UnifiedPush endpoint to the AppDaemon
   app (`PushRegistrar.kt`); AppDaemon (`tools/homeassistant/appdaemon/doorbell_push.py`)
   stores the device list and sends the HTTP POST to every endpoint.
@@ -360,8 +375,11 @@ app/src/main/java/de/kleinabersmart/doorbellintercom/
   MainActivity.kt                Start screen: live picture + talk
   SettingsActivity.kt            Settings screen
   DoorbellForegroundService.kt   Watches Wi-Fi, MQTT without internet, triggers the call screen
-  IncomingCallActivity.kt        Full-screen call UI with accept/decline
-  IncomingCallNotifier.kt        Shows/ends the call (ringing time, answered elsewhere)
+  DoorbellApp.kt                 Application with the small AppContainer (process-wide objects)
+  CallController.kt              Call state (idle/ringing/active), dedup, timeout, missed ring
+  IncomingCallActivity.kt        Full-screen call UI with accept/decline, follows CallController
+  IncomingCallNotifier.kt        Ring, missed, answered-elsewhere and not-reachable notifications
+  LiveViewController.kt          Shared live picture: VPN first, then RTSP
   DirectRtspClient.kt            Video directly over RTSP (ExoPlayer/media3)
   MqttClientWrapper.kt           MQTT client wrapper
   DoorbellPushService.kt         Push receiver (UnifiedPush)

@@ -84,12 +84,15 @@ object PushRegistrar {
 
     /**
      * Meldet Home Assistant, dass dieses Gerät den Anruf angenommen hat – die anderen
-     * Handys hören daraufhin auf zu klingeln (Push "doorbell_answered").
+     * Handys hören daraufhin auf zu klingeln (Push "doorbell_answered"). Mit [ringId] beenden
+     * sie nur dieses Klingeln, nicht ein inzwischen neues.
      */
-    fun reportAnswered(context: Context) {
+    fun reportAnswered(context: Context, ringId: String?) {
         val config = AppConfig(context)
         if (config.registrationUrl.isBlank()) return
-        val body = JSONObject().put("device", config.deviceName).put("action", "answered").toString()
+        val body = JSONObject().put("device", config.deviceName).put("action", "answered")
+            .apply { if (ringId != null) put("id", ringId) }
+            .toString()
         post(config.registrationUrl, body, null)
     }
 

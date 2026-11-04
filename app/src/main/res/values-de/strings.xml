@@ -89,6 +89,8 @@
     <string name="switch_silent_when_unreachable">Nur leise melden, wenn ich nicht zu Hause bin und kein VPN eingerichtet ist (Kamera nicht erreichbar)</string>
     <string name="channel_not_reachable">Klingel (Kamera nicht erreichbar)</string>
     <string name="not_reachable_title">Es hat geklingelt – Sie sind nicht im Heimnetz</string>
+    <string name="channel_missed">Verpasstes Klingeln</string>
+    <string name="missed_title">Verpasstes Klingeln um %1$s</string>
     <string name="status_vpn_permission_granted">VPN-Steuerung erlaubt</string>
     <string name="status_vpn_permission_denied">VPN-Steuerung nicht erlaubt – ist WireGuard installiert?</string>
     <string name="status_vpn_connecting">Baue VPN auf …</string>
@@ -125,6 +127,7 @@
     <string name="btn_hang_up">Auflegen</string>
     <string name="btn_door_open_and_hang_up">Tür öffnen und auflegen</string>
     <string name="status_unlock_cancelled">Entsperren abgebrochen – zum Annehmen erneut tippen</string>
+    <string name="status_rang_again">Es hat erneut geklingelt</string>
 
     <string name="channel_service_status">Dienst-Status</string>
     <string name="channel_incoming_call">Eingehender Klingel-Anruf</string>

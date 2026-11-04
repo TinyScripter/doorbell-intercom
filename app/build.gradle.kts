@@ -105,6 +105,8 @@ dependencies {
     implementation("org.unifiedpush.android:connector:3.3.5")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // lifecycleScope: Coroutines der Activities enden mit dem Bildschirm.
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
 
     // QR-Code für den Einstellungs-Transfer: zxing erzeugt ihn (alle Varianten); eingelesen
     // wird er je nach Variante über den ML-Kit-Scanner (play) oder zxing-embedded (free).
