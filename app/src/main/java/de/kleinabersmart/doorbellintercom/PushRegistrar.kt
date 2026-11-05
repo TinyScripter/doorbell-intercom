@@ -12,9 +12,11 @@ import java.net.URL
  * Meldet den UnifiedPush-Endpunkt dieses Geräts per HTTP-POST an den Registrierungs-Endpunkt
  * der AppDaemon-App (tools/homeassistant/appdaemon/doorbell_push.py), die damit beim
  * Klingeln allen registrierten Handys ein HTTP-POST schicken kann. Body:
- * {"device": "<Gerätename>", "endpoint": "<Endpoint-URL>"}. Der Gerätename trennt
- * mehrere Handys voneinander; wer sich mit demselben Namen erneut meldet,
- * ersetzt seinen alten Eintrag.
+ * {"device": "<Gerätename>", "endpoint": "<Endpoint-URL>", "p256dh": "…", "auth": "…"}.
+ * Der Gerätename trennt mehrere Handys voneinander; wer sich mit demselben Namen erneut
+ * meldet, ersetzt seinen alten Eintrag. Mit den Web-Push-Schlüsseln (p256dh, auth) kann
+ * Home Assistant die Pushes verschlüsseln; ob es das tut, steht in der Antwort
+ * ({"encryption": true}) und landet in AppConfig.pushEncryptionConfirmed.
  *
  * Den Endpunkt vergibt der Push-Verteiler (z. B. die ntfy-App) erst nach [ensureRegistered];
  * er kommt asynchron in DoorbellPushService.onNewEndpoint an und wird dort gemeldet.
@@ -27,8 +29,11 @@ object PushRegistrar {
 
     private const val TAG = "PushRegistrar"
 
-    /** [code] ist der HTTP-Status oder -1, falls keine Antwort kam ([error] nennt dann den Grund). */
-    data class Result(val code: Int, val error: String? = null) {
+    /**
+     * [code] ist der HTTP-Status oder -1, falls keine Antwort kam ([error] nennt dann den Grund).
+     * [body] ist die Antwort des Endpunkts (bei Fehlern dessen Fehlermeldung).
+     */
+    data class Result(val code: Int, val error: String? = null, val body: String = "") {
         val success: Boolean get() = code in 200..299
     }
 
@@ -61,18 +66,30 @@ object PushRegistrar {
         onResult: ((Result) -> Unit)? = null
     ) {
         if (url.isBlank()) return
-        val endpoint = AppConfig(context).pushEndpoint
-        if (endpoint.isBlank()) {
+        if (AppConfig(context).pushEndpoint.isBlank()) {
             onResult?.invoke(Result(-1, context.getString(R.string.error_no_push_endpoint)))
             return
         }
-        send(url, device, endpoint, onResult)
+        send(context, url, device, onResult)
     }
 
-    fun send(url: String, device: String, endpoint: String, onResult: ((Result) -> Unit)? = null) {
+    /** Meldet den gespeicherten Endpunkt samt Web-Push-Schlüsseln an [url]. */
+    fun send(context: Context, url: String, device: String, onResult: ((Result) -> Unit)? = null) {
         if (url.isBlank()) return
-        val body = JSONObject().put("device", device).put("endpoint", endpoint).toString()
-        post(url, body, onResult)
+        val config = AppConfig(context)
+        val body = JSONObject().put("device", device).put("endpoint", config.pushEndpoint)
+        if (config.pushPublicKey.isNotBlank() && config.pushAuthSecret.isNotBlank()) {
+            body.put("p256dh", config.pushPublicKey).put("auth", config.pushAuthSecret)
+        }
+        post(url, body.toString()) { result ->
+            if (result.success) {
+                // Ältere AppDaemon-Versionen antworten ohne "encryption": dann unverschlüsselt.
+                val encrypted = runCatching { JSONObject(result.body).optBoolean("encryption") }.getOrDefault(false)
+                config.pushEncryptionConfirmed = encrypted
+                Log.i(TAG, "Registriert, Pushes ${if (encrypted) "verschlüsselt" else "unverschlüsselt"}")
+            }
+            onResult?.invoke(result)
+        }
     }
 
     /** Entfernt dieses Gerät aus der Geräteliste in Home Assistant. */
@@ -100,17 +117,22 @@ object PushRegistrar {
         Thread {
             val result = try {
                 val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-                val code = connection.responseCode
-                connection.disconnect()
-                // Ohne Query-Teil loggen: dort kann das Geheimnis (?key=...) stehen.
-                Log.i(TAG, "Registrierungs-Endpunkt ${url.substringBefore('?')}: HTTP $code")
-                Result(code)
+                try {
+                    connection.requestMethod = "POST"
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    val code = connection.responseCode
+                    val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                    val response = stream?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+                    // Ohne Query-Teil loggen: dort kann das Geheimnis (?key=...) stehen.
+                    Log.i(TAG, "Registrierungs-Endpunkt ${url.substringBefore('?')}: HTTP $code")
+                    Result(code, body = response)
+                } finally {
+                    connection.disconnect()
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Registrierungs-Endpunkt nicht erreichbar", e)
                 Result(-1, e.message ?: e.javaClass.simpleName)

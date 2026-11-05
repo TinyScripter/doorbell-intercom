@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -62,6 +63,7 @@ class DirectRtspClient(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var catchUpTicks = 0
     private var ducked = false
+    private var voiceCall = false
 
     /** Reolink: Sub-Stream statt Main-Stream – die Kamera schickt das Video auch hier mit. */
     private val audioUrl = rtspUrl.substringBeforeLast('/') + "/" +
@@ -136,6 +138,7 @@ class DirectRtspClient(
         // Stumm: Ton wird zwar mitgeladen, aber nicht ausgegeben (z. B. im
         // Klingelbildschirm, bevor der Anruf angenommen wurde).
         applyVolume()
+        applyAudioAttributes()
         Log.d(TAG, if (separateAudio) "Ton über eigene Verbindung: ${audioUrl.substringAfterLast('/')}" else "Ton über die Video-Verbindung")
         mainHandler.postDelayed(catchUpRunnable, CATCH_UP_INTERVAL_MS)
     }
@@ -249,6 +252,32 @@ class DirectRtspClient(
             Log.d(TAG, "Dämpfung endet in $delay ms")
             mainHandler.postDelayed(unduckRunnable, delay)
         }
+    }
+
+    /**
+     * Ton als Sprachanruf statt als Medium ausgeben: nötig, wenn das Klingeln als Anruf beim
+     * System angemeldet ist (TelecomBridge) – nur dieser Audiopfad folgt dessen Routing
+     * (Lautsprecher, Bluetooth) und gehört zur Echo-Unterdrückung des Anrufs. Lautstärke ist
+     * dann die Anruflautstärke. Ohne Telecom bleibt es beim Medienton.
+     */
+    fun setVoiceCall(enabled: Boolean) {
+        if (voiceCall == enabled) return
+        voiceCall = enabled
+        Log.d(TAG, if (enabled) "Ton als Sprachanruf" else "Ton als Medium")
+        applyAudioAttributes()
+    }
+
+    private fun applyAudioAttributes() {
+        val attributes = if (voiceCall) {
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_VOICE_COMMUNICATION)
+                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                .build()
+        } else {
+            AudioAttributes.DEFAULT
+        }
+        // Den Audio-Fokus verwaltet beim Anruf das System.
+        soundPlayer?.setAudioAttributes(attributes, /* handleAudioFocus = */ false)
     }
 
     private fun applyVolume() {

@@ -16,6 +16,8 @@
     <string name="btn_talk_start">Talk</string>
     <string name="btn_talk_stop">Mute</string>
     <string name="btn_door_open">Open door</string>
+    <string name="label_talk">Microphone</string>
+    <string name="slide_to_open">Slide to open the door</string>
 
     <string name="status_talk_active">Talk connection active</string>
     <string name="status_talk_failed">Intercom failed: %1$s</string>
@@ -58,10 +60,19 @@
     <string name="section_connections_summary">Door opener, VPN</string>
     <string name="section_about">About / Licenses</string>
     <string name="section_about_summary">License and third-party notices</string>
+    <string name="section_ring_log">Ring log</string>
+    <string name="section_ring_log_summary">The last 20 rings: path and outcome</string>
+    <string name="ring_log_hint">Newest first. Helps when the phone did not ring: did the ring arrive, via which path (push or MQTT), and what happened to it?</string>
+    <string name="ring_log_empty">No rings recorded yet</string>
+    <string name="btn_copy">Copy</string>
+    <string name="toast_ring_log_copied">Ring log copied</string>
     <string name="label_ring_duration">Ring duration: %1$d s</string>
     <string name="label_ringtone">Ringtone: %1$s</string>
     <string name="btn_choose_ringtone">Choose ringtone</string>
     <string name="switch_ring_in_silent_mode">Ring even when the phone is on silent or vibrate (uses the alarm volume)</string>
+    <string name="switch_telecom_calls">Treat rings as phone calls (experimental)</string>
+    <string name="switch_telecom_calls_summary">Registers each ring as a call with Android: a phone call during the intercom puts it on hold, and you can answer or hang up from a watch, headset or car. The doorbell audio then plays as a call (call volume). Turn off if audio is too quiet or comes from the earpiece.</string>
+    <string name="status_call_held">On hold – a phone call is active. Tap the microphone to resume the intercom.</string>
     <string name="check_notify_answered_elsewhere">Notify when another phone answers</string>
     <string name="answered_elsewhere_title">Doorbell answered by: %1$s</string>
     <string name="section_door">Door opener</string>
@@ -78,7 +89,8 @@
     <string name="btn_unregister_device">Unregister</string>
     <string name="status_register_url_missing">Please enter the registration URL first</string>
     <string name="status_register_device_blank">Please enter a device name</string>
-    <string name="status_device_registered">Registered with Home Assistant (HTTP %1$d)</string>
+    <string name="status_device_registered">Registered with Home Assistant (HTTP %1$d) – pushes encrypted</string>
+    <string name="status_device_registered_unencrypted">Registered with Home Assistant (HTTP %1$d) – pushes NOT encrypted (AppDaemon needs the \"cryptography\" package)</string>
     <string name="status_device_register_failed">Registration failed: %1$s</string>
     <string name="status_device_unregistered">Device unregistered from Home Assistant – it will register again on the next app start as long as a registration URL is set</string>
     <string name="status_device_unregister_failed">Unregistering failed: %1$s</string>
@@ -124,11 +136,14 @@
     <string name="about_libraries">This app uses the following libraries under the Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):\n\n• AndroidX (core, appcompat, constraintlayout)\n• Material Components for Android\n• AndroidX Media3\n• HiveMQ MQTT Client\n• UnifiedPush Android connector\n• kotlinx.coroutines\n• ZXing core</string>
     <string name="about_feather_icons">The phone handset icon is based on Feather Icons (MIT License):\nhttps://github.com/feathericons/feather</string>
     <string name="about_mit_license_text" translatable="false">reolink_aio – MIT License\n\nCopyright (c) 2023 starkillerOG\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
+    <string name="call_caller_name">Front door</string>
     <string name="incoming_call_title">Someone is at the door</string>
     <string name="btn_accept">Accept</string>
     <string name="btn_decline">Decline</string>
     <string name="btn_hang_up">Hang up</string>
     <string name="btn_door_open_and_hang_up">Open door and hang up</string>
+    <string name="label_door_open_and_hang_up">Open &amp; end</string>
+    <string name="slide_to_open_and_hang_up">Slide to open &amp; hang up</string>
     <string name="status_unlock_cancelled">Unlock cancelled – tap again to accept</string>
     <string name="status_rang_again">The doorbell rang again</string>
 

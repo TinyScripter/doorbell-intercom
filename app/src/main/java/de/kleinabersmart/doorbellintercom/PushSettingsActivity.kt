@@ -56,7 +56,12 @@ class PushSettingsActivity : SettingsSectionActivity() {
         PushRegistrar.registerCurrentEndpoint(this, url, device) { result ->
             runOnUiThread {
                 showToast(if (result.success) {
-                    getString(R.string.status_device_registered, result.code)
+                    // PushRegistrar hat die Antwort schon ausgewertet.
+                    getString(
+                        if (config.pushEncryptionConfirmed) R.string.status_device_registered
+                        else R.string.status_device_registered_unencrypted,
+                        result.code
+                    )
                 } else {
                     getString(R.string.status_device_register_failed, describe(result))
                 })

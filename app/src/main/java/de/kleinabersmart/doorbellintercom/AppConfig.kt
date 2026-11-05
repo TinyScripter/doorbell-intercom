@@ -197,6 +197,29 @@ class AppConfig(context: Context) {
         get() = devicePrefs.getString(KEY_PUSH_ENDPOINT, "") ?: ""
         set(value) = devicePrefs.edit().putString(KEY_PUSH_ENDPOINT, value).apply()
 
+    /**
+     * Öffentlicher Web-Push-Schlüssel (p256dh, RFC 8291) zum [pushEndpoint], base64url. Den
+     * privaten Schlüssel verwaltet die UnifiedPush-Bibliothek. Leer, solange der Verteiler
+     * keinen gemeldet hat.
+     */
+    var pushPublicKey: String
+        get() = devicePrefs.getString(KEY_PUSH_PUBLIC_KEY, "") ?: ""
+        set(value) = devicePrefs.edit().putString(KEY_PUSH_PUBLIC_KEY, value).apply()
+
+    /** Auth-Secret zu [pushPublicKey], base64url. */
+    var pushAuthSecret: String
+        get() = devicePrefs.getString(KEY_PUSH_AUTH_SECRET, "") ?: ""
+        set(value) = devicePrefs.edit().putString(KEY_PUSH_AUTH_SECRET, value).apply()
+
+    /**
+     * Home Assistant hat bei der letzten Registrierung bestätigt, dass es die Pushes an dieses
+     * Gerät verschlüsselt. Dann werden unverschlüsselte Pushes abgelehnt (DoorbellPushService):
+     * wer nur die Endpoint-URL kennt, kann so kein Klingeln vortäuschen.
+     */
+    var pushEncryptionConfirmed: Boolean
+        get() = devicePrefs.getBoolean(KEY_PUSH_ENCRYPTION_CONFIRMED, false)
+        set(value) = devicePrefs.edit().putBoolean(KEY_PUSH_ENCRYPTION_CONFIRMED, value).apply()
+
     /** Beim Klingeln außerhalb des Heimnetzes den WireGuard-Tunnel automatisch auf- und danach abbauen. */
     var wireguardAutoVpn: Boolean
         get() = prefs.getBoolean(KEY_WIREGUARD_AUTO_VPN, false)
@@ -214,6 +237,14 @@ class AppConfig(context: Context) {
     var silentWhenUnreachable: Boolean
         get() = prefs.getBoolean(KEY_SILENT_WHEN_UNREACHABLE, false)
         set(value) = prefs.edit().putBoolean(KEY_SILENT_WHEN_UNREACHABLE, value).apply()
+
+    /**
+     * Klingeln als Anruf beim System anmelden (TelecomBridge, experimentell): Halten bei einem
+     * Telefonat, Annehmen über Uhr und Headset; der Ton läuft dann als Sprachanruf.
+     */
+    var telecomCalls: Boolean
+        get() = prefs.getBoolean(KEY_TELECOM_CALLS, false)
+        set(value) = prefs.edit().putBoolean(KEY_TELECOM_CALLS, value).apply()
 
     /**
      * Merkt sich die letzten Klingel-Ereignisse (Zeitpunkt, Weg, Ergebnis) dauerhaft,
@@ -238,10 +269,10 @@ class AppConfig(context: Context) {
 
     /**
      * Stand der Einstellungen und Gerätedaten, um Änderungen auf einer Einstellungsseite zu
-     * erkennen. Ohne Ring-Log und Push-Endpoint: die ändern sich auch ohne Zutun des Nutzers.
+     * erkennen. Ohne Ring-Log und Push-Daten: die ändern sich auch ohne Zutun des Nutzers.
      */
     fun snapshot(): String =
-        (prefs.all + devicePrefs.all.filterKeys { it != KEY_RING_LOG && it != KEY_PUSH_ENDPOINT })
+        (prefs.all + devicePrefs.all.filterKeys { it !in AUTOMATIC_DEVICE_KEYS })
             .toSortedMap().toString()
 
     /**
@@ -364,9 +395,13 @@ class AppConfig(context: Context) {
         // Schlüsselname stammt aus der FCM-Zeit; beibehalten, damit gespeicherte Einstellungen weiter gelten.
         private const val KEY_REGISTRATION_URL = "fcm_token_url"
         private const val KEY_PUSH_ENDPOINT = "push_endpoint"
+        private const val KEY_PUSH_PUBLIC_KEY = "push_public_key"
+        private const val KEY_PUSH_AUTH_SECRET = "push_auth_secret"
+        private const val KEY_PUSH_ENCRYPTION_CONFIRMED = "push_encryption_confirmed"
         private const val KEY_WIREGUARD_AUTO_VPN = "wireguard_auto_vpn"
         private const val KEY_WIREGUARD_TUNNEL = "wireguard_tunnel"
         private const val KEY_SILENT_WHEN_UNREACHABLE = "silent_when_unreachable"
+        private const val KEY_TELECOM_CALLS = "telecom_calls"
         private const val KEY_DEVICE_NAME = "device_name"
         private const val KEY_RING_LOG = "ring_log"
         private const val RING_LOG_MAX_ENTRIES = 20
@@ -377,6 +412,11 @@ class AppConfig(context: Context) {
          * übersprungen, falls eine Datei sie doch enthält.
          */
         private val DEVICE_KEYS = setOf(KEY_RING_LOG, KEY_DEVICE_NAME, KEY_PUSH_ENDPOINT, KEY_RINGTONE_URI)
+
+        /** Gerätedaten, die sich ohne Zutun des Nutzers ändern (nicht in [snapshot]). */
+        private val AUTOMATIC_DEVICE_KEYS = setOf(
+            KEY_RING_LOG, KEY_PUSH_ENDPOINT, KEY_PUSH_PUBLIC_KEY, KEY_PUSH_AUTH_SECRET, KEY_PUSH_ENCRYPTION_CONFIRMED
+        )
 
         private const val QR_PREFIX = "dbi1:"
 

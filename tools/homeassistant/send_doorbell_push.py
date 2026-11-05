@@ -11,6 +11,10 @@ Aufruf:
     Endpoint-URLs aller Handys selbst; sie liegen in deren Geräte-Datei
     (doorbell_devices.json). Die URL ist das Geheimnis – nicht weitergeben.
 
+Die Nachricht geht unverschlüsselt raus. Hat Home Assistant dem Handy bestätigt, dass es
+verschlüsselt (AppDaemon mit "cryptography"), verwirft die App sie; dann stattdessen das
+Test-Klingeln der AppDaemon-App nutzen ({"action": "ring"}).
+
 Exit-Code 0 bei Erfolg, sonst 1 mit Fehlermeldung auf stderr.
 """
 

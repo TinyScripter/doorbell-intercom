@@ -1,18 +1,56 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.DoorbellIntercom" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/doorbell_primary</item>
-        <item name="colorPrimaryDark">@color/doorbell_primary_dark</item>
-        <item name="colorAccent">@color/doorbell_accent</item>
+    <!-- Material 3 mit festem Farbschema (colors.xml) statt Dynamic Color: die Buttons über
+         dem Video haben feste Signalfarben (grün/rot/gelb), die Einstellungen bleiben im
+         Markenblau. -->
+    <style name="Theme.DoorbellIntercom" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/md_theme_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
+        <item name="colorSecondary">@color/md_theme_secondary</item>
+        <item name="colorOnSecondary">@color/md_theme_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/md_theme_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/md_theme_onSecondaryContainer</item>
+        <item name="colorTertiary">@color/md_theme_tertiary</item>
+        <item name="colorOnTertiary">@color/md_theme_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/md_theme_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/md_theme_onTertiaryContainer</item>
+        <item name="colorError">@color/md_theme_error</item>
+        <item name="colorOnError">@color/md_theme_onError</item>
+        <item name="colorErrorContainer">@color/md_theme_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/md_theme_onErrorContainer</item>
+        <item name="android:colorBackground">@color/md_theme_background</item>
+        <item name="colorOnBackground">@color/md_theme_onBackground</item>
+        <item name="colorSurface">@color/md_theme_surface</item>
+        <item name="colorOnSurface">@color/md_theme_onSurface</item>
+        <item name="colorSurfaceVariant">@color/md_theme_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/md_theme_onSurfaceVariant</item>
+        <item name="colorOutline">@color/md_theme_outline</item>
+        <item name="colorOutlineVariant">@color/md_theme_outlineVariant</item>
+        <item name="colorSurfaceInverse">@color/md_theme_inverseSurface</item>
+        <item name="colorOnSurfaceInverse">@color/md_theme_inverseOnSurface</item>
+        <item name="colorPrimaryInverse">@color/md_theme_inversePrimary</item>
+        <item name="colorSurfaceDim">@color/md_theme_surfaceDim</item>
+        <item name="colorSurfaceBright">@color/md_theme_surfaceBright</item>
+        <item name="colorSurfaceContainerLowest">@color/md_theme_surfaceContainerLowest</item>
+        <item name="colorSurfaceContainerLow">@color/md_theme_surfaceContainerLow</item>
+        <item name="colorSurfaceContainer">@color/md_theme_surfaceContainer</item>
+        <item name="colorSurfaceContainerHigh">@color/md_theme_surfaceContainerHigh</item>
+        <item name="colorSurfaceContainerHighest">@color/md_theme_surfaceContainerHighest</item>
+        <!-- Helle Systemleisten-Symbole wie zuvor mit MaterialComponents: oben liegt immer eine
+             dunkle Fläche (Video bzw. blaue Toolbar), Material 3 Light würde dunkle Symbole setzen. -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
     </style>
 
     <style name="Theme.DoorbellIntercom.FullScreen" parent="Theme.DoorbellIntercom">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowBackground">@color/video_background</item>
     </style>
 
     <!-- Einstellungen: eine Karte pro Kategorie -->
-    <style name="Widget.DoorbellIntercom.SettingsCard" parent="Widget.MaterialComponents.CardView">
+    <style name="Widget.DoorbellIntercom.SettingsCard" parent="Widget.Material3.CardView.Elevated">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginBottom">16dp</item>
@@ -34,5 +72,37 @@
         <item name="android:padding">17dp</item>
         <item name="android:scaleType">fitCenter</item>
         <item name="android:elevation">6dp</item>
+    </style>
+
+    <!-- Spalte aus rundem Button und Beschriftung darunter. Breiter als der Button, damit
+         längere Beschriftungen ("Öffnen & Ende") nicht umbrechen. -->
+    <style name="Widget.DoorbellIntercom.ButtonColumn" parent="">
+        <item name="android:layout_width">104dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_horizontal</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <!-- Beschriftung unter den runden Buttons. TalkBack liest den Button selbst vor
+         (contentDescription), daher ist sie für die Bedienungshilfe ausgeblendet. -->
+    <style name="Widget.DoorbellIntercom.ButtonLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:shadowColor">@color/on_video_shadow</item>
+        <item name="android:shadowRadius">4</item>
+        <item name="android:textColor">@color/on_video</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <!-- "Zum Öffnen schieben" über den Buttons (SlideToConfirmView) -->
+    <style name="Widget.DoorbellIntercom.DoorSlider" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:layout_marginHorizontal">24dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
     </style>
 </resources>

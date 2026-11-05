@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import de.kleinabersmart.doorbellintercom.databinding.ActivityIncomingCallBinding
@@ -23,6 +24,8 @@ import kotlinx.coroutines.launch
  *
  * Bei gesperrtem Handy verlangen "Annehmen" und "Tür öffnen + Auflegen" zuerst
  * die Entsperrung, damit die Tür nicht vom Sperrbildschirm aus geöffnet werden kann.
+ * Beide Tür-Buttons blenden zunächst nur den Slider "Zum Öffnen schieben" ein
+ * (SlideToConfirmView); entsperrt wird erst nach dem Schieben.
  */
 class IncomingCallActivity : AppCompatActivity() {
 
@@ -69,11 +72,25 @@ class IncomingCallActivity : AppCompatActivity() {
 
         binding.btnAccept.setOnClickListener { acceptCall() }
         binding.btnDecline.setOnClickListener { calls.decline(CallController.SOURCE_SCREEN) }
-        binding.btnTalk.setOnClickListener { intercom.toggleTalk() }
+        binding.btnTalk.setOnClickListener {
+            if (isHeld) {
+                // Gehalten (Telefonat): Tippen setzt fort und startet danach das Sprechen.
+                talkAfterResume = true
+                calls.requestResume()
+            } else {
+                intercom.toggleTalk()
+            }
+        }
         // Nach dem Annehmen ist das Handy entsperrt; runUnlocked sichert trotzdem ab.
-        binding.btnDoorOpen.setOnClickListener { runUnlocked(intercom::openDoor) }
+        binding.btnDoorOpen.setOnClickListener {
+            confirmDoor(R.string.slide_to_open, R.string.btn_door_open) { runUnlocked(intercom::openDoor) }
+        }
         binding.btnHangUp.setOnClickListener { calls.hangUp() }
-        binding.btnDoorOpenAndHangUp.setOnClickListener { runUnlocked(::openDoorAndHangUp) }
+        binding.btnDoorOpenAndHangUp.setOnClickListener {
+            confirmDoor(R.string.slide_to_open_and_hang_up, R.string.btn_door_open_and_hang_up) {
+                runUnlocked(::openDoorAndHangUp)
+            }
+        }
 
         // Ab CREATED statt STARTED: auch ein Klingelbildschirm im Hintergrund soll sich nach
         // Ablauf schließen und damit den VPN-Tunnel freigeben. Der erste Wert kommt sofort.
@@ -103,6 +120,7 @@ class IncomingCallActivity : AppCompatActivity() {
         super.onStop()
         calls.onCallScreenStopped()
         intercom.stopTalk()
+        binding.doorSlider.hide()
         liveView.stop()
     }
 
@@ -121,6 +139,8 @@ class IncomingCallActivity : AppCompatActivity() {
             is CallState.Ringing -> if (previous !is CallState.Ringing || previous.seq != state.seq) showRinging()
             is CallState.Active -> {
                 if (previous !is CallState.Active) showCall()
+                liveView.voiceCall = state.systemCall
+                if (state.held != ((previous as? CallState.Active)?.held ?: false)) showHeld(state.held)
                 if (state.rangAgain) binding.statusText.text = getString(R.string.status_rang_again)
             }
         }
@@ -129,6 +149,7 @@ class IncomingCallActivity : AppCompatActivity() {
     /** Auch nach einem liegen gelassenen Gespräch, wenn es erneut klingelt (siehe CallController.onCallScreenStarted). */
     private fun showRinging() {
         intercom.stopTalk()
+        binding.doorSlider.hide()
         liveView.muted = true
         binding.statusText.text = getString(R.string.incoming_call_title)
         binding.buttonBar.visibility = View.VISIBLE
@@ -139,6 +160,8 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun showCall() {
+        // Ein noch offener Slider gehörte zu "Öffnen & Ende" vor dem Annehmen.
+        binding.doorSlider.hide()
         liveView.muted = false
         binding.statusText.text = getString(R.string.status_connected)
         binding.buttonBar.visibility = View.GONE
@@ -151,6 +174,25 @@ class IncomingCallActivity : AppCompatActivity() {
         // Entsperren erreichbar.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(false)
+        }
+    }
+
+    private val isHeld: Boolean get() = (shown as? CallState.Active)?.held == true
+
+    /** Nach dem Fortsetzen sofort sprechen: das Fortsetzen kam vom Tippen aufs Mikrofon. */
+    private var talkAfterResume = false
+
+    /** Das System hält den Anruf während eines Telefonats (TelecomBridge): Ton und Mikrofon aus. */
+    private fun showHeld(held: Boolean) {
+        liveView.muted = held
+        if (held) {
+            talkAfterResume = false
+            intercom.stopTalk()
+            binding.statusText.text = getString(R.string.status_call_held)
+        } else {
+            binding.statusText.text = getString(R.string.status_connected)
+            if (talkAfterResume) intercom.startTalk()
+            talkAfterResume = false
         }
     }
 
@@ -171,6 +213,11 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun acceptCall() = runUnlocked { calls.accept() }
+
+    /** Tür-Aktionen erst nach dem Schieben; ein zweiter Tap auf denselben Button blendet den Slider wieder aus. */
+    private fun confirmDoor(@StringRes label: Int, @StringRes action: Int, onConfirmed: () -> Unit) {
+        binding.doorSlider.toggle(getString(label), getString(action), onConfirmed)
+    }
 
     /**
      * Führt [action] erst aus, wenn das Handy entsperrt ist. Der Bildschirm erscheint auch

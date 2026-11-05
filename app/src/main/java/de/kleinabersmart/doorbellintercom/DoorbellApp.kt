@@ -24,6 +24,9 @@ class AppContainer(app: Application) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val callController = CallController(app, appScope)
+
+    /** Meldet ein Klingeln bei Bedarf als Anruf beim System an (Einstellung "Als Anruf einbinden"). */
+    val telecom = TelecomBridge(app, appScope, callController).also { it.start() }
 }
 
 val Context.appContainer: AppContainer

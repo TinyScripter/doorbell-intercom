@@ -19,12 +19,22 @@ import org.unifiedpush.android.connector.data.PushMessage
  * Ring-ID "id" (fehlt bei älteren Versionen der AppDaemon-App).
  * Der Push-Verteiler (z. B. die ntfy-App) reicht ihn an diesen Dienst weiter.
  *
+ * Verschlüsselung (RFC 8291): Die Bibliothek entschlüsselt selbst (PushMessage.decrypted).
+ * Hat Home Assistant bei der Registrierung bestätigt, dass es verschlüsselt, werden
+ * unverschlüsselte Nachrichten verworfen – die Endpoint-URL allein reicht dann nicht mehr,
+ * um ein Klingeln vorzutäuschen oder per "answered" stummzuschalten.
+ *
  * Achtung: notify.mobile_app aus Home Assistant reicht dafür nicht – das geht
  * an die Companion-App, nicht an diese App.
  */
 class DoorbellPushService : PushService() {
 
     override fun onMessage(message: PushMessage, instance: String) {
+        if (!message.decrypted && AppConfig(this).pushEncryptionConfirmed) {
+            Log.w(TAG, "Unverschlüsselte Push-Nachricht verworfen")
+            appContainer.callController.onRejectedPush()
+            return
+        }
         val text = String(message.content, Charsets.UTF_8)
         val data = try {
             JSONObject(text)
@@ -47,7 +57,10 @@ class DoorbellPushService : PushService() {
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
         val config = AppConfig(this)
         config.pushEndpoint = endpoint.url
-        PushRegistrar.send(config.registrationUrl, config.deviceName, endpoint.url)
+        // Fehlen bei Verteilern ohne Web-Push-Unterstützung: dann bleibt es unverschlüsselt.
+        config.pushPublicKey = endpoint.pubKeySet?.pubKey.orEmpty()
+        config.pushAuthSecret = endpoint.pubKeySet?.auth.orEmpty()
+        PushRegistrar.send(this, config.registrationUrl, config.deviceName)
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {

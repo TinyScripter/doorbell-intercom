@@ -78,6 +78,11 @@
             android:screenOrientation="portrait"
             android:parentActivityName=".SettingsActivity" />
         <activity
+            android:name=".RingLogActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".SettingsActivity" />
+        <activity
             android:name=".AboutActivity"
             android:exported="false"
             android:screenOrientation="portrait"

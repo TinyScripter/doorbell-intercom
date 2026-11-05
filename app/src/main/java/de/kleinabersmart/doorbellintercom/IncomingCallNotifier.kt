@@ -11,6 +11,9 @@ import android.os.Build
 import android.os.SystemClock
 import android.text.format.DateFormat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
+import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.scale
 
 /**
  * Benachrichtigungen rund ums Klingeln: Klingel-Benachrichtigung mit Full-Screen-Intent,
@@ -45,6 +48,9 @@ object IncomingCallNotifier {
     private const val REQUEST_ACCEPT = 1
     private const val REQUEST_MISSED = 2
 
+    /** Größe des runden Bilds im CallStyle; größer zeigt das System ohnehin nicht. */
+    private const val CALLER_ICON_PX = 256
+
     /** Zeigt bzw. aktualisiert die Klingel-Benachrichtigung (beim zweiten Aufruf mit Vorschaubild). */
     fun showRinging(context: Context, ringing: CallState.Ringing, picture: Bitmap?) {
         ensureCallChannel(context)
@@ -61,7 +67,12 @@ object IncomingCallNotifier {
      * Der Full-Screen-Intent ist der offizielle Weg, aus dem Hintergrund eine
      * Anrufansicht zu zeigen: bei gesperrtem/ausgeschaltetem Display öffnet Android
      * den Klingelbildschirm direkt, sonst erscheint die Benachrichtigung als Heads-up
-     * mit Vorschaubild und den Buttons Annehmen, Ablehnen und Tür öffnen.
+     * mit den Buttons Annehmen, Ablehnen und Tür öffnen.
+     *
+     * Als Anruf (CallStyle): Anruf-Optik und -Priorisierung, Annehmen/Ablehnen als
+     * Anruf-Buttons. Das Vorschaubild erscheint dann nur als rundes Bild der „Anruferin“
+     * Haustür – BigPictureStyle und CallStyle schließen sich aus. Ohne Full-Screen-Erlaubnis
+     * (Android 14+) ist CallStyle nicht zulässig; dann wie früher mit großem Vorschaubild.
      */
     private fun buildCallNotification(context: Context, timeoutMs: Long, picture: Bitmap?): Notification {
         val openPendingIntent = PendingIntent.getActivity(
@@ -72,6 +83,7 @@ object IncomingCallNotifier {
             context, REQUEST_ACCEPT, callScreenIntent(context, accept = true),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val declinePendingIntent = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_DECLINE)
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_CALL)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
@@ -81,16 +93,27 @@ object IncomingCallNotifier {
             .setFullScreenIntent(openPendingIntent, true)
             .setContentIntent(openPendingIntent)
             // Wegwischen (auch auf der gekoppelten Uhr) gilt als Ablehnen.
-            .setDeleteIntent(CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_DECLINE))
+            .setDeleteIntent(declinePendingIntent)
             .setAutoCancel(true)
             // Das Nachreichen des Vorschaubilds soll weder erneut aufpoppen noch den Klingelbildschirm neu öffnen.
             .setOnlyAlertOnce(true)
             .setTimeoutAfter(timeoutMs)
-            .addAction(0, context.getString(R.string.btn_accept), acceptPendingIntent)
-            .addAction(
-                0, context.getString(R.string.btn_decline),
-                CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_DECLINE)
-            )
+
+        val asCall = canUseCallStyle(context)
+        if (asCall) {
+            val door = Person.Builder()
+                .setName(context.getString(R.string.call_caller_name))
+                .setImportant(true)
+                .apply { if (picture != null) setIcon(IconCompat.createWithBitmap(centerSquare(picture))) }
+                .build()
+            builder
+                .setContentText(context.getString(R.string.incoming_call_title))
+                .setStyle(NotificationCompat.CallStyle.forIncomingCall(door, declinePendingIntent, acceptPendingIntent))
+        } else {
+            builder
+                .addAction(0, context.getString(R.string.btn_accept), acceptPendingIntent)
+                .addAction(0, context.getString(R.string.btn_decline), declinePendingIntent)
+        }
 
         if (AppConfig(context).doorOpenUrl.isNotBlank()) {
             val doorAction = NotificationCompat.Action.Builder(
@@ -106,8 +129,24 @@ object IncomingCallNotifier {
             builder.extend(NotificationCompat.WearableExtender().addAction(doorAction))
         }
 
-        if (picture != null) builder.setPicture(picture)
+        if (picture != null && !asCall) builder.setPicture(picture)
         return builder.build()
+    }
+
+    /**
+     * CallStyle verlangt einen Vordergrunddienst oder einen Full-Screen-Intent. Ab Android 14
+     * kann der Nutzer die Full-Screen-Erlaubnis entziehen (siehe SystemCheck); dann lässt das
+     * System die Benachrichtigung als CallStyle nicht zu.
+     */
+    private fun canUseCallStyle(context: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+            context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+
+    /** Mittiger quadratischer Ausschnitt, verkleinert: das Bild der „Anruferin“ wird rund beschnitten. */
+    private fun centerSquare(picture: Bitmap): Bitmap {
+        val side = minOf(picture.width, picture.height)
+        val square = Bitmap.createBitmap(picture, (picture.width - side) / 2, (picture.height - side) / 2, side, side)
+        return if (side <= CALLER_ICON_PX) square else square.scale(CALLER_ICON_PX, CALLER_ICON_PX)
     }
 
     private fun NotificationCompat.Builder.setPicture(picture: Bitmap) {

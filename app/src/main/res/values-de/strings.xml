@@ -14,6 +14,8 @@
     <string name="btn_talk_start">Sprechen</string>
     <string name="btn_talk_stop">Stumm schalten</string>
     <string name="btn_door_open">Tür öffnen</string>
+    <string name="label_talk">Mikrofon</string>
+    <string name="slide_to_open">Zum Öffnen schieben</string>
 
     <string name="status_talk_active">Sprechverbindung aktiv</string>
     <string name="status_talk_failed">Gegensprechen fehlgeschlagen: %1$s</string>
@@ -56,10 +58,19 @@
     <string name="section_connections_summary">Türöffner, VPN</string>
     <string name="section_about">Über / Lizenzen</string>
     <string name="section_about_summary">Lizenz und Hinweise auf verwendete Fremdkomponenten</string>
+    <string name="section_ring_log">Klingel-Protokoll</string>
+    <string name="section_ring_log_summary">Die letzten 20 Klingel-Ereignisse: Weg und Ergebnis</string>
+    <string name="ring_log_hint">Neueste zuerst. Hilft, wenn es nicht geklingelt hat: Ist das Klingeln angekommen, über welchen Weg (Push oder MQTT), und was ist daraus geworden?</string>
+    <string name="ring_log_empty">Noch kein Klingeln aufgezeichnet</string>
+    <string name="btn_copy">Kopieren</string>
+    <string name="toast_ring_log_copied">Klingel-Protokoll kopiert</string>
     <string name="label_ring_duration">Klingeldauer: %1$d s</string>
     <string name="label_ringtone">Klingelton: %1$s</string>
     <string name="btn_choose_ringtone">Klingelton wählen</string>
     <string name="switch_ring_in_silent_mode">Auch klingeln, wenn das Telefon lautlos oder auf Vibration steht (nutzt die Wecker-Lautstärke)</string>
+    <string name="switch_telecom_calls">Klingeln als Anruf ins System einbinden (experimentell)</string>
+    <string name="switch_telecom_calls_summary">Meldet jedes Klingeln als Anruf bei Android an: Ein Telefonat während des Gegensprechens hält die Sprechanlage an, Annehmen und Auflegen gehen auch über Uhr, Headset oder Auto. Der Ton der Klingel läuft dann als Anruf (Anruflautstärke). Ausschalten, falls der Ton zu leise ist oder aus der Hörmuschel kommt.</string>
+    <string name="status_call_held">Gehalten – ein Telefonat läuft. Zum Fortsetzen auf das Mikrofon tippen.</string>
     <string name="check_notify_answered_elsewhere">Benachrichtigen, wenn ein anderes Telefon abnimmt</string>
     <string name="answered_elsewhere_title">Türklingel beantwortet von: %1$s</string>
     <string name="section_door">Türöffner</string>
@@ -76,7 +87,8 @@
     <string name="btn_unregister_device">Abmelden</string>
     <string name="status_register_url_missing">Bitte zuerst die Registrierungs-URL eintragen</string>
     <string name="status_register_device_blank">Bitte einen Gerätenamen eintragen</string>
-    <string name="status_device_registered">Bei Home Assistant gemeldet (HTTP %1$d)</string>
+    <string name="status_device_registered">Bei Home Assistant gemeldet (HTTP %1$d) – Pushes verschlüsselt</string>
+    <string name="status_device_registered_unencrypted">Bei Home Assistant gemeldet (HTTP %1$d) – Pushes NICHT verschlüsselt (AppDaemon braucht das Paket \"cryptography\")</string>
     <string name="status_device_register_failed">Melden fehlgeschlagen: %1$s</string>
     <string name="status_device_unregistered">Gerät in Home Assistant abgemeldet – meldet sich beim nächsten App-Start wieder an, solange eine Registrierungs-URL eingetragen ist</string>
     <string name="status_device_unregister_failed">Abmelden fehlgeschlagen: %1$s</string>
@@ -121,11 +133,14 @@
     <string name="about_libraries_title">Bibliotheken</string>
     <string name="about_libraries">Diese App verwendet folgende Bibliotheken unter der Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):\n\n• AndroidX (core, appcompat, constraintlayout)\n• Material Components for Android\n• AndroidX Media3\n• HiveMQ MQTT Client\n• UnifiedPush Android connector\n• kotlinx.coroutines\n• ZXing core</string>
     <string name="about_feather_icons">Das Telefonhörer-Symbol basiert auf Feather Icons (MIT-Lizenz):\nhttps://github.com/feathericons/feather</string>
+    <string name="call_caller_name">Haustür</string>
     <string name="incoming_call_title">Es klingelt an der Tür</string>
     <string name="btn_accept">Annehmen</string>
     <string name="btn_decline">Ablehnen</string>
     <string name="btn_hang_up">Auflegen</string>
     <string name="btn_door_open_and_hang_up">Tür öffnen und auflegen</string>
+    <string name="label_door_open_and_hang_up">Öffnen &amp; Ende</string>
+    <string name="slide_to_open_and_hang_up">Zum Öffnen &amp; Auflegen schieben</string>
     <string name="status_unlock_cancelled">Entsperren abgebrochen – zum Annehmen erneut tippen</string>
     <string name="status_rang_again">Es hat erneut geklingelt</string>
 

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="@color/video_background">
 
     <androidx.media3.ui.PlayerView
         android:id="@+id/videoView"
@@ -23,7 +23,7 @@
         android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#66000000"
+        android:background="@color/video_scrim"
         app:layout_constraintTop_toTopOf="parent">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -31,10 +31,10 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@android:color/transparent"
-            android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
-            app:popupTheme="@style/ThemeOverlay.MaterialComponents.Light"
+            android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar"
+            app:popupTheme="@style/Theme.DoorbellIntercom"
             app:title="@string/app_name"
-            app:titleTextColor="#FFFFFF" />
+            app:titleTextColor="@color/on_video" />
 
     </FrameLayout>
 
@@ -45,13 +45,13 @@
         android:layout_marginTop="16dp"
         android:gravity="center"
         android:paddingHorizontal="16dp"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/on_video"
         android:textSize="16sp"
         app:layout_constraintTop_toBottomOf="@id/topBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Mikrofon-Status mittig direkt über den Buttons; der Schatten hält den
+    <!-- Mikrofon-Status mittig über den Buttons bzw. dem Tür-Slider; der Schatten hält den
          Text auch lesbar, wenn er über hellem Videobild liegt. -->
     <TextView
         android:id="@+id/talkStatusText"
@@ -59,10 +59,18 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:paddingHorizontal="16dp"
-        android:shadowColor="#000000"
+        android:shadowColor="@color/on_video_shadow"
         android:shadowRadius="4"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/on_video"
         android:textSize="16sp"
+        app:layout_constraintBottom_toTopOf="@id/doorSlider"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Erscheint erst nach Tippen auf "Tür öffnen" (siehe SlideToConfirmView). -->
+    <de.kleinabersmart.doorbellintercom.SlideToConfirmView
+        android:id="@+id/doorSlider"
+        style="@style/Widget.DoorbellIntercom.DoorSlider"
         app:layout_constraintBottom_toTopOf="@id/bottomBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -76,20 +84,35 @@
         android:padding="24dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <ImageButton
-            android:id="@+id/btnTalk"
-            style="@style/Widget.DoorbellIntercom.IconButton"
-            android:layout_marginEnd="32dp"
-            android:background="@drawable/bg_btn_mic_off"
-            android:contentDescription="@string/btn_talk_start"
-            android:src="@drawable/ic_mic_off" />
+        <LinearLayout
+            style="@style/Widget.DoorbellIntercom.ButtonColumn"
+            android:layout_marginEnd="16dp">
 
-        <ImageButton
-            android:id="@+id/btnDoorOpen"
-            style="@style/Widget.DoorbellIntercom.IconButton"
-            android:background="@drawable/bg_btn_door"
-            android:contentDescription="@string/btn_door_open"
-            android:src="@drawable/ic_door" />
+            <ImageButton
+                android:id="@+id/btnTalk"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:background="@drawable/bg_btn_mic_off"
+                android:contentDescription="@string/btn_talk_start"
+                android:src="@drawable/ic_mic_off" />
+
+            <TextView
+                style="@style/Widget.DoorbellIntercom.ButtonLabel"
+                android:text="@string/label_talk" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Widget.DoorbellIntercom.ButtonColumn">
+
+            <ImageButton
+                android:id="@+id/btnDoorOpen"
+                style="@style/Widget.DoorbellIntercom.IconButton"
+                android:background="@drawable/bg_btn_door"
+                android:contentDescription="@string/btn_door_open"
+                android:src="@drawable/ic_door" />
+
+            <TextView
+                style="@style/Widget.DoorbellIntercom.ButtonLabel"
+                android:text="@string/btn_door_open" />
+        </LinearLayout>
 
     </LinearLayout>
 

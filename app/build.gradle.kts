@@ -14,7 +14,8 @@ fun versionCodeOf(version: String): Int {
 
 android {
     namespace = "de.kleinabersmart.doorbellintercom"
-    compileSdk = 36
+    // core-telecom 1.1 verlangt mindestens 36.1; targetSdk (Laufzeitverhalten) bleibt bei 36.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "de.kleinabersmart.doorbellintercom"
@@ -141,6 +142,10 @@ dependencies {
     // Pushweg über UnifiedPush (z. B. mit der ntfy-App als Verteiler): kein eigenes
     // Cloud-Projekt nötig, Home Assistant schickt einfach ein HTTP-POST an die Endpoint-URL.
     implementation(libs.unifiedpush.connector)
+
+    // Klingeln als selbstverwalteter Anruf im System (optional, Einstellung "Als Anruf einbinden"):
+    // Halten bei einem Telefonat, Annehmen/Auflegen über Uhr und Headset, Audio-Routing.
+    implementation(libs.androidx.core.telecom)
 
     implementation(libs.kotlinx.coroutines.android)
     // lifecycleScope: Coroutines der Activities enden mit dem Bildschirm.

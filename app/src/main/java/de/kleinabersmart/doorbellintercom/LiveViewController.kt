@@ -34,6 +34,13 @@ class LiveViewController(
             client?.setMuted(value)
         }
 
+    /** Ton als Sprachanruf (siehe DirectRtspClient.setVoiceCall); gilt auch für einen später gestarteten Stream. */
+    var voiceCall: Boolean = false
+        set(value) {
+            field = value
+            client?.setVoiceCall(value)
+        }
+
     fun start() {
         if (job?.isActive == true || client != null) return
         // Abbruch in stop(): Wer den Bildschirm während des Tunnel-Aufbaus verlässt, startet keinen Stream mehr.
@@ -62,7 +69,10 @@ class LiveViewController(
             rebufferMs = config.videoRebufferMs,
             onConnected = { if (reportConnection) onStatus(activity.getString(R.string.status_connected)) },
             onError = onStatus
-        ).also { it.start() }
+        ).also {
+            it.start()
+            it.setVoiceCall(voiceCall)
+        }
     }
 
     fun stop() {

@@ -10,6 +10,7 @@ import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.doOnLayout
 import com.google.android.material.snackbar.Snackbar
 import de.kleinabersmart.doorbellintercom.databinding.ActivityMainBinding
 
@@ -58,7 +59,10 @@ class MainActivity : AppCompatActivity() {
             onSpeakingChanged = liveView::setDucked
         )
         binding.btnTalk.setOnClickListener { intercom.toggleTalk() }
-        binding.btnDoorOpen.setOnClickListener { intercom.openDoor() }
+        // Erst schieben, dann öffnen: ein versehentlicher Tap soll die Tür nicht öffnen.
+        binding.btnDoorOpen.setOnClickListener {
+            binding.doorSlider.toggle(getString(R.string.slide_to_open), getString(R.string.btn_door_open), intercom::openDoor)
+        }
 
         requestRuntimePermissions()
         // Hintergrunddienst für den MQTT-Fallback, sofern in den Einstellungen aktiv.
@@ -101,10 +105,12 @@ class MainActivity : AppCompatActivity() {
         }
         if (systemCheckSnackbar?.isShownOrQueued == true) return
         // Nicht dauerhaft: es soll das Live-Bild nicht verdecken, kommt aber bei jedem Öffnen wieder.
-        systemCheckSnackbar = Snackbar.make(binding.root, R.string.check_snackbar, SYSTEM_CHECK_HINT_MS)
+        val snackbar = Snackbar.make(binding.root, R.string.check_snackbar, SYSTEM_CHECK_HINT_MS)
             .setAnchorView(binding.bottomBar)
             .setAction(R.string.btn_check) { openSettings() }
-            .also { it.show() }
+        systemCheckSnackbar = snackbar
+        // Erst nach dem Layout der Button-Leiste: beim ersten Start läge die Snackbar sonst über den Beschriftungen.
+        binding.bottomBar.doOnLayout { if (systemCheckSnackbar === snackbar) snackbar.show() }
     }
 
     override fun onStart() {
@@ -117,6 +123,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         intercom.stopTalk()
+        binding.doorSlider.hide()
         liveView.stop()
         if (!openingSettings) liveView.releaseVpn()
     }

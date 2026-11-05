@@ -4,9 +4,13 @@ import android.app.NotificationManager
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -235,6 +239,77 @@ class CallControllerTest {
 
         calls.leave(ringing.seq)
         assertEquals(CallState.Idle, state)
+    }
+
+    // --- Anruf im System (TelecomBridge) ------------------------------------
+
+    @Test
+    fun systemCall_isKeptWhenAccepted() {
+        calls.onRing("A", source = "Push")
+        calls.onSystemCallAdded(ringing.seq)
+        assertTrue(ringing.systemCall)
+
+        calls.accept()
+
+        assertTrue((state as CallState.Active).systemCall)
+    }
+
+    @Test
+    fun acceptFromSystem_onlyForTheRingingSeq() {
+        calls.onRing("A", source = "Push")
+        val seq = ringing.seq
+
+        assertFalse(calls.acceptFromSystem(seq + 1))
+        assertTrue(calls.acceptFromSystem(seq))
+        assertTrue(state is CallState.Active)
+        assertTrue(config.ringLog.first().endsWith("System  angenommen"))
+        // Schon angenommen: ein zweites Annehmen schlägt fehl (TelecomBridge lehnt dann ab).
+        assertFalse(calls.acceptFromSystem(seq))
+    }
+
+    @Test
+    fun endFromSystem_declinesRingingAndHangsUpCall_butNotANewerRing() {
+        calls.onRing("A", source = "Push")
+        val first = ringing.seq
+        calls.endFromSystem(first)
+        assertEquals(CallState.Idle, state)
+
+        calls.onRing("B", source = "Push")
+        calls.accept()
+        calls.endFromSystem(first)
+        assertTrue(state is CallState.Active)
+        calls.endFromSystem(state.seq!!)
+        assertEquals(CallState.Idle, state)
+    }
+
+    @Test
+    fun setHeld_marksActiveCallAndLogsIt() {
+        calls.onRing("A", source = "Push")
+        calls.accept()
+        val seq = state.seq!!
+
+        calls.setHeld(seq, held = true)
+        assertTrue((state as CallState.Active).held)
+        assertTrue(config.ringLog.first().endsWith("System  gehalten"))
+
+        calls.setHeld(seq, held = false)
+        assertFalse((state as CallState.Active).held)
+        assertTrue(config.ringLog.first().endsWith("System  fortgesetzt"))
+    }
+
+    @Test
+    fun requestResume_onlyWhileHeld() = scope.runTest {
+        val requests = mutableListOf<Int>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { calls.resumeRequests.toList(requests) }
+        calls.onRing("A", source = "Push")
+        calls.accept()
+        val seq = state.seq!!
+
+        calls.requestResume()
+        calls.setHeld(seq, held = true)
+        calls.requestResume()
+
+        assertEquals(listOf(seq), requests)
     }
 
     @Test

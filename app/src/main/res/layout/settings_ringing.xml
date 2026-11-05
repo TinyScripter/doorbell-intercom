@@ -39,12 +39,26 @@
                 android:layout_height="wrap_content"
                 android:text="@string/btn_choose_ringtone" />
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switchRingInSilentMode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/switch_ring_in_silent_mode" />
+
+            <!-- Experimentell: TelecomBridge -->
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchTelecomCalls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/switch_telecom_calls" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/switch_telecom_calls_summary"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

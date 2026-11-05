@@ -21,7 +21,7 @@ import de.kleinabersmart.doorbellintercom.databinding.SettingsMainBinding
 
 /**
  * Hauptseite der Einstellungen: Liste der Unterseiten (Kamera, Klingel, Push, weitere
- * Verbindungen, Über / Lizenzen) und die Sicherung. Gespeichert wird in den Unterseiten
+ * Verbindungen, Klingel-Protokoll, Über / Lizenzen) und die Sicherung. Gespeichert wird in den Unterseiten
  * beim Verlassen; kehrt eine mit Änderungen zurück, erscheint hier ein Toast.
  */
 class SettingsActivity : SettingsBaseActivity() {
@@ -61,6 +61,7 @@ class SettingsActivity : SettingsBaseActivity() {
         addEntry(R.string.section_ringing, R.string.section_ringing_summary, RingingSettingsActivity::class.java)
         addEntry(R.string.section_push_settings, R.string.section_push_settings_summary, PushSettingsActivity::class.java)
         addEntry(R.string.section_connections, R.string.section_connections_summary, ConnectionsSettingsActivity::class.java)
+        addEntry(R.string.section_ring_log, R.string.section_ring_log_summary, RingLogActivity::class.java)
         addEntry(R.string.section_about, R.string.section_about_summary, AboutActivity::class.java)
 
         binding.btnExportSettings.setOnClickListener { exportLauncher.launch(EXPORT_FILE_NAME) }

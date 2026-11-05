@@ -19,13 +19,25 @@ home network, with no vendor cloud in between.
   Baichuan protocol, about 1 s latency, similar to the official Reolink app),
   with an adjustable software microphone gain.
 - **Door opener button**: calls a webhook URL you configure (for example a
-  Home Assistant webhook).
+  Home Assistant webhook). Tapping it only shows a **"Slide to open the door"**
+  bar; the door opens once you slide the knob to the end, so an accidental tap
+  does not open it. With TalkBack, a double tap on the bar confirms.
 - **Two ways to get the ring**: push via ntfy/UnifiedPush (works from anywhere
   with internet, needs no cloud account) and MQTT (works inside your home
   network even without internet). See section 3.
 - **Several phones**: every registered phone rings. When one phone accepts the
   call, the others stop ringing and close the call screen. If one phone
   declines, the others keep ringing.
+- **Call-style notification**: the ring notification looks and behaves like an
+  incoming phone call (caller "Front door" with the camera snapshot as picture).
+  If the full-screen permission is withdrawn (Android 14+), it falls back to a
+  normal notification with a large snapshot.
+- **Rings as phone calls** (optional, experimental, *Settings → Doorbell*):
+  each ring is registered as a call with Android. A phone call during the
+  intercom puts it on hold (tap the microphone afterwards to resume), and you
+  can answer or hang up from a watch, headset or car. The doorbell audio then
+  plays as a call (call volume, speaker by default). On a locked phone, audio
+  starts only after unlocking. The rings do not appear in the phone's call log.
 - **"Answered by" notice** (optional): the other phones show a short
   notification such as "Doorbell answered by: Pixel 10 Pro".
 - **Adjustable ringing time**: 10 to 90 seconds, default 30 seconds. When
@@ -82,9 +94,12 @@ of your own is required.
 - Each phone gets its own endpoint URL from ntfy (for example
   `https://ntfy.sh/upAbc123…`). The app reports it to Home Assistant by itself.
 - With the public server ntfy.sh, the server operator can see metadata (topic
-  and time). The endpoint URL is the secret: whoever knows it can make the
-  phone ring. If you do not want that, host ntfy yourself and point the ntfy
-  app at your server.
+  and time). With encryption set up (4.2, package `cryptography`), the content
+  is end-to-end encrypted (Web Push, RFC 8291) and the app rejects unencrypted
+  pushes, so knowing the endpoint URL is no longer enough to fake a ring.
+  Without encryption the endpoint URL is the secret: whoever knows it can make
+  the phone ring. You can also host ntfy yourself and point the ntfy app at
+  your server.
 - ntfy from the Play Store keeps a connection to the server. If ntfy is
   stopped by the system (battery optimisation), the server rejects the push
   and nothing rings, so check that exception first if a ring does not arrive.
@@ -140,8 +155,16 @@ example the old `"ring"`) still rings; the app then treats everything within
 
 ### 4.2 ntfy push via AppDaemon
 
-1. Install the **AppDaemon** add-on in Home Assistant. The app described here
-   needs no additional Python packages.
+1. Install the **AppDaemon** add-on in Home Assistant. For encrypted pushes
+   (recommended), add the package `cryptography` in the add-on configuration:
+
+   ```yaml
+   python_packages:
+     - cryptography
+   ```
+
+   Without it everything works as before, only unencrypted; the AppDaemon log
+   then shows a warning.
 2. Copy `tools/homeassistant/appdaemon/doorbell_push.py` to the add-on's `apps`
    folder (`/addon_configs/a0d7b954_appdaemon/apps/` for the official add-on).
 3. Add this to `apps.yaml` (the same example is at the top of the script):
@@ -171,7 +194,10 @@ example the old `"ring"`) still rings; the app then treats everything within
    name is not part of exported settings). Leave the page to save. The app registers with ntfy
    (Android asks which distributor to use if several are installed) and reports
    its endpoint to Home Assistant at start and after saving. **Report now**
-   ("Jetzt melden") does it immediately and shows the result in a short pop-up.
+   ("Jetzt melden") does it immediately and shows the result in a short pop-up,
+   including whether pushes are encrypted. Along with the endpoint the app sends
+   its Web Push keys; once Home Assistant confirms encryption, the app ignores
+   unencrypted pushes (logged as "unverschlüsselt, verworfen" in the ring log).
 
 `notify.mobile_app` does not replace this: it goes to the Home Assistant
 Companion app, not to this app.
@@ -191,7 +217,8 @@ curl -X POST -H "Content-Type: application/json" -d '{"action": "ring"}' \
 
 For a single phone, use `python3 tools/homeassistant/send_doorbell_push.py
 --endpoint <endpoint URL>`. The endpoint URL is in `doorbell_devices.json`.
-The AppDaemon log shows one line per phone that was pushed to.
+This sends an unencrypted push, so it only rings on a phone without confirmed
+encryption. The AppDaemon log shows one line per phone that was pushed to.
 
 #### Several phones
 
@@ -325,6 +352,10 @@ Notes:
   from battery optimisation, and has a subscription for the app (it appears in
   the ntfy app's list). The push server answers HTTP 507 ("without
   previously active subscriber") when ntfy is not connected.
+- **"It did not ring"**: *Settings → Ring log* lists the last 20 ring events
+  with time, path (push or MQTT) and outcome (shown, duplicate ignored, missed,
+  accepted, …). If a ring is missing there, it never reached the phone. The
+  entries are written in German.
 
 ## 7. Building from source
 
@@ -386,7 +417,11 @@ plugin or `google-services.json` is needed.
   first arrival counts as the same ring.
 - **Push registration**: the app reports its UnifiedPush endpoint to the AppDaemon
   app (`PushRegistrar.kt`); AppDaemon (`tools/homeassistant/appdaemon/doorbell_push.py`)
-  stores the device list and sends the HTTP POST to every endpoint.
+  stores the device list and sends the HTTP POST to every endpoint, encrypted
+  per RFC 8291 if the phone sent its Web Push keys and `cryptography` is installed.
+- **System call (optional, experimental)**: `TelecomBridge.kt` registers each
+  ring as a self-managed call with Android (androidx.core:core-telecom) and keeps
+  it in step with `CallController`.
 - **VPN (optional)**: the app starts and stops the WireGuard tunnel by intent
   (`WireGuardTunnel.kt`).
 
@@ -401,7 +436,10 @@ app/src/main/java/de/kleinabersmart/doorbellintercom/
   DoorbellApp.kt                 Application with the small AppContainer (process-wide objects)
   CallController.kt              Call state (idle/ringing/active), dedup, timeout, missed ring
   IncomingCallActivity.kt        Full-screen call UI with accept/decline, follows CallController
-  IncomingCallNotifier.kt        Ring, missed, answered-elsewhere and not-reachable notifications
+  IncomingCallNotifier.kt        Ring (CallStyle), missed, answered-elsewhere and not-reachable notifications
+  TelecomBridge.kt               Optional: ring as a call in the Android telecom system
+  SlideToConfirmView.kt          "Slide to open the door" confirmation
+  RingLogActivity.kt             Settings page with the ring log
   LiveViewController.kt          Shared live picture: VPN first, then RTSP
   DirectRtspClient.kt            Video directly over RTSP (ExoPlayer/media3)
   MqttClientWrapper.kt           MQTT client wrapper

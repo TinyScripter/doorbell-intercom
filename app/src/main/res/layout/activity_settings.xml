@@ -11,15 +11,15 @@
         android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary">
+        android:background="?attr/colorPrimaryContainer">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@android:color/transparent"
-            android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
-            app:titleTextColor="#FFFFFF" />
+            android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar"
+            app:titleTextColor="?attr/colorOnPrimaryContainer" />
 
     </FrameLayout>
 

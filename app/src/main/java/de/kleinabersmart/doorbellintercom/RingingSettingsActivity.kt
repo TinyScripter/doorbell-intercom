@@ -8,7 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.IntentCompat
 import de.kleinabersmart.doorbellintercom.databinding.SettingsRingingBinding
 
-/** Einstellungen: Klingel (Klingeldauer, Klingelton, Verhalten im Lautlos-Modus). */
+/** Einstellungen: Klingel (Klingeldauer, Klingelton, Verhalten im Lautlos-Modus, als Anruf einbinden). */
 class RingingSettingsActivity : SettingsSectionActivity() {
 
     private lateinit var binding: SettingsRingingBinding
@@ -41,12 +41,14 @@ class RingingSettingsActivity : SettingsSectionActivity() {
         selectedRingtoneUri = config.ringtoneUri
         showRingtone(selectedRingtoneUri)
         binding.switchRingInSilentMode.isChecked = config.ringInSilentMode
+        binding.switchTelecomCalls.isChecked = config.telecomCalls
     }
 
     override fun saveFieldsIntoConfig() {
         config.ringDurationSeconds = binding.sliderRingDuration.value.toInt()
         config.ringtoneUri = selectedRingtoneUri
         config.ringInSilentMode = binding.switchRingInSilentMode.isChecked
+        config.telecomCalls = binding.switchTelecomCalls.isChecked
     }
 
     private fun chooseRingtone() {

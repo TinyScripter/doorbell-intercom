@@ -1,5 +1,50 @@
 <resources>
-    <color name="doorbell_primary">#1565C0</color>
-    <color name="doorbell_primary_dark">#0D47A1</color>
-    <color name="doorbell_accent">#43A047</color>
+    <!-- Material-3-Farbschema, erzeugt aus dem Markenblau #1565C0 (Material Color Utilities,
+         SchemeFidelity, Spec 2025): primaryContainer ist genau das Markenblau. Dunkle Variante
+         in values-night/colors.xml. -->
+    <color name="md_theme_primary">#004D99</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#1565C0</color>
+    <color name="md_theme_onPrimaryContainer">#DAE5FF</color>
+    <color name="md_theme_secondary">#4A5F83</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondaryContainer">#C0D5FF</color>
+    <color name="md_theme_onSecondaryContainer">#475C80</color>
+    <color name="md_theme_tertiary">#813900</color>
+    <color name="md_theme_onTertiary">#FFFFFF</color>
+    <color name="md_theme_tertiaryContainer">#A64C00</color>
+    <color name="md_theme_onTertiaryContainer">#FFDECE</color>
+    <color name="md_theme_error">#BA1A1A</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_errorContainer">#FFDAD6</color>
+    <color name="md_theme_onErrorContainer">#93000A</color>
+    <color name="md_theme_background">#F9F9FF</color>
+    <color name="md_theme_onBackground">#191C21</color>
+    <color name="md_theme_surface">#F9F9FF</color>
+    <color name="md_theme_onSurface">#191C21</color>
+    <color name="md_theme_surfaceVariant">#DEE2F0</color>
+    <color name="md_theme_onSurfaceVariant">#424752</color>
+    <color name="md_theme_outline">#727783</color>
+    <color name="md_theme_outlineVariant">#C2C6D4</color>
+    <color name="md_theme_inverseSurface">#2E3037</color>
+    <color name="md_theme_inverseOnSurface">#EFF0F9</color>
+    <color name="md_theme_inversePrimary">#A9C7FF</color>
+    <color name="md_theme_surfaceDim">#D8DAE2</color>
+    <color name="md_theme_surfaceBright">#F9F9FF</color>
+    <color name="md_theme_surfaceContainerLowest">#FFFFFF</color>
+    <color name="md_theme_surfaceContainerLow">#F2F3FB</color>
+    <color name="md_theme_surfaceContainer">#ECEDF6</color>
+    <color name="md_theme_surfaceContainerHigh">#E7E8F0</color>
+    <color name="md_theme_surfaceContainerHighest">#E1E2EA</color>
+
+    <!-- Über dem Live-Bild: unabhängig von Hell/Dunkel, da das Video immer dahinter liegt. -->
+    <color name="video_background">#000000</color>
+    <color name="on_video">#FFFFFF</color>
+    <color name="on_video_shadow">#000000</color>
+    <color name="video_scrim">#66000000</color>
+    <color name="slider_track">#99000000</color>
+    <color name="slider_track_outline">#4DFFFFFF</color>
+
+    <!-- Hintergrund des adaptiven App-Icons (ic_launcher_background) -->
+    <color name="launcher_background">#0D47A1</color>
 </resources>

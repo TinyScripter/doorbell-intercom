@@ -7,7 +7,10 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -31,18 +34,30 @@ sealed interface CallState {
     /**
      * [seq] unterscheidet aufeinanderfolgende Klingeln, auch wenn Home Assistant keine [id]
      * mitschickt (ältere Konfiguration). [endsAt] ist SystemClock.elapsedRealtime(),
-     * [rangAt] die Uhrzeit für die Meldung „Verpasst“.
+     * [rangAt] die Uhrzeit für die Meldung „Verpasst“. [systemCall]: als Anruf beim System
+     * angemeldet (TelecomBridge).
      */
     data class Ringing(
         override val seq: Int,
         val id: String?,
         val source: String,
         val rangAt: Long,
-        val endsAt: Long
+        val endsAt: Long,
+        val systemCall: Boolean = false
     ) : CallState
 
-    /** [rangAgain]: Während des Gesprächs hat es erneut geklingelt; das wird nur angezeigt, nicht geläutet. */
-    data class Active(override val seq: Int, val id: String?, val rangAgain: Boolean = false) : CallState
+    /**
+     * [rangAgain]: Während des Gesprächs hat es erneut geklingelt; das wird nur angezeigt, nicht geläutet.
+     * [systemCall]: als Anruf beim System angemeldet, der Ton läuft dann über den Anruf-Audiopfad.
+     * [held]: vom System gehalten, z. B. weil ein Telefonat angenommen wurde – Ton und Mikrofon aus.
+     */
+    data class Active(
+        override val seq: Int,
+        val id: String?,
+        val rangAgain: Boolean = false,
+        val systemCall: Boolean = false,
+        val held: Boolean = false
+    ) : CallState
 }
 
 /**
@@ -128,6 +143,14 @@ class CallController(private val context: Context, private val scope: CoroutineS
         startRinging(id, source, timestamp)
     }
 
+    /**
+     * Eine unverschlüsselte Push-Nachricht kam an, obwohl Home Assistant verschlüsselt (siehe
+     * DoorbellPushService): nicht klingeln, nur für die Fehlersuche festhalten.
+     */
+    fun onRejectedPush() {
+        AppConfig(context).appendRingLogEntry("${currentTimestamp()}  Push  unverschlüsselt, verworfen")
+    }
+
     /** Grund, warum [id] als Duplikat gilt, oder null für ein neues Klingeln. */
     private fun duplicateReason(id: String?, now: Long): String? {
         if (id != null && id in seenIds) return "Duplikat, ID $id"
@@ -208,11 +231,75 @@ class CallController(private val context: Context, private val scope: CoroutineS
     @Synchronized
     fun accept(): Boolean {
         val ringing = _state.value as? CallState.Ringing ?: return false
-        AppConfig(context).appendRingLogEntry("${currentTimestamp()}  $SOURCE_SCREEN  angenommen")
+        return acceptRinging(ringing, SOURCE_SCREEN)
+    }
+
+    private fun acceptRinging(ringing: CallState.Ringing, source: String): Boolean {
+        AppConfig(context).appendRingLogEntry("${currentTimestamp()}  $source  angenommen")
         stopRingingEffects()
-        _state.value = CallState.Active(ringing.seq, ringing.id)
+        _state.value = CallState.Active(ringing.seq, ringing.id, systemCall = ringing.systemCall)
         PushRegistrar.reportAnswered(context, ringing.id)
         return true
+    }
+
+    // --- Anruf im System (TelecomBridge) ------------------------------------
+
+    /** Das System hat das Klingeln [seq] als Anruf angenommen (angemeldet, noch nicht angenommen). */
+    @Synchronized
+    fun onSystemCallAdded(seq: Int) {
+        when (val current = _state.value) {
+            is CallState.Ringing -> if (current.seq == seq) _state.value = current.copy(systemCall = true)
+            is CallState.Active -> if (current.seq == seq) _state.value = current.copy(systemCall = true)
+            CallState.Idle -> Unit
+        }
+    }
+
+    /**
+     * Annehmen über das System (Uhr, Headset-Taste, Android Auto). Gibt false zurück, wenn
+     * [seq] nicht mehr klingelt. Den Bildschirm öffnet der Full-Screen-Intent; auf dem
+     * Sperrbildschirm läuft der Ton erst nach dem Entsperren (siehe IncomingCallActivity).
+     */
+    @Synchronized
+    fun acceptFromSystem(seq: Int): Boolean {
+        val ringing = _state.value as? CallState.Ringing ?: return false
+        if (ringing.seq != seq) return false
+        return acceptRinging(ringing, SOURCE_SYSTEM)
+    }
+
+    /** Das System hat den Anruf [seq] beendet (z. B. Auflegen am Headset). */
+    @Synchronized
+    fun endFromSystem(seq: Int) {
+        if (_state.value.seq != seq) return
+        when (_state.value) {
+            is CallState.Ringing -> decline(SOURCE_SYSTEM)
+            is CallState.Active -> hangUp()
+            CallState.Idle -> Unit
+        }
+    }
+
+    private val _resumeRequests = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+
+    /**
+     * Bitten, den gehaltenen Anruf (seq) fortzusetzen. Telecom setzt ihn nach dem Telefonat
+     * nicht von selbst fort; das macht TelecomBridge auf diese Bitte hin.
+     */
+    val resumeRequests: SharedFlow<Int> = _resumeRequests.asSharedFlow()
+
+    /** Fortsetzen nach dem Halten (Tippen aufs Mikrofon im Klingelbildschirm). */
+    fun requestResume() {
+        val active = _state.value as? CallState.Active ?: return
+        if (active.held) _resumeRequests.tryEmit(active.seq)
+    }
+
+    /** Das System hält den Anruf [seq] (z. B. Telefonat angenommen) bzw. setzt ihn fort. */
+    @Synchronized
+    fun setHeld(seq: Int, held: Boolean) {
+        val active = _state.value as? CallState.Active ?: return
+        if (active.seq != seq || active.held == held) return
+        AppConfig(context).appendRingLogEntry(
+            "${currentTimestamp()}  $SOURCE_SYSTEM  ${if (held) "gehalten" else "fortgesetzt"}"
+        )
+        _state.value = active.copy(held = held)
     }
 
     /** Ablehnen im Klingelbildschirm oder in der Benachrichtigung; betrifft nur dieses Gerät. */
@@ -295,9 +382,10 @@ class CallController(private val context: Context, private val scope: CoroutineS
     /**
      * Uhrzeit im Klartext (statt nur SystemClock.elapsedRealtime) - so lassen sich
      * Einträge direkt mit Zeitstempeln aus Home-Assistant-/AppDaemon-Logs vergleichen.
+     * Mit Datum, da das Klingel-Protokoll (RingLogActivity) über mehrere Tage reicht.
      */
     private fun currentTimestamp(): String =
-        SimpleDateFormat("HH:mm:ss.SSS", Locale.GERMANY).format(Date())
+        SimpleDateFormat("dd.MM. HH:mm:ss.SSS", Locale.GERMANY).format(Date())
 
     companion object {
         private const val TAG = "CallController"
@@ -306,6 +394,7 @@ class CallController(private val context: Context, private val scope: CoroutineS
 
         const val SOURCE_SCREEN = "Klingelbildschirm"
         const val SOURCE_NOTIFICATION = "Benachrichtigung"
+        const val SOURCE_SYSTEM = "System"
 
         /**
          * Ring-ID aus einer MQTT-Nachricht: JSON mit "id" (siehe README 4.1). Andere Payloads
