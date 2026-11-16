@@ -60,6 +60,7 @@ import de.kleinabersmart.doorbellintercom.ui.theme.DoorBrush
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
 import de.kleinabersmart.doorbellintercom.ui.theme.RippleOnLight
 import de.kleinabersmart.doorbellintercom.ui.theme.onVideoTextStyle
+import de.kleinabersmart.doorbellintercom.ui.theme.pixelRoundedFontSize
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -127,6 +128,7 @@ fun MainScreen(
                     Text(
                         text = stringResource(R.string.app_name),
                         style = LocalTextStyle.current.copy(
+                            fontSize = pixelRoundedFontSize(LocalTextStyle.current.fontSize),
                             lineHeight = TextUnit.Unspecified,
                             platformStyle = PlatformTextStyle(includeFontPadding = true),
                         ),

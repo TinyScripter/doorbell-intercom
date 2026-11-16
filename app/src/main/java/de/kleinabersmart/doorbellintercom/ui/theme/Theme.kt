@@ -7,11 +7,13 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
 import de.kleinabersmart.doorbellintercom.R
+import kotlin.math.roundToInt
 
 /**
  * Compose-Gegenstück zu Theme.DoorbellIntercom: Material 3 mit festem Farbschema statt
@@ -80,7 +82,7 @@ private fun doorbellColorScheme(dark: Boolean): ColorScheme {
 @Composable
 fun overlayTextStyle(fontSize: TextUnit): TextStyle = TextStyle(
     color = colorResource(R.color.on_video),
-    fontSize = fontSize,
+    fontSize = pixelRoundedFontSize(fontSize),
     shadow = Shadow(color = colorResource(R.color.on_video_shadow), blurRadius = 4f),
     platformStyle = PlatformTextStyle(includeFontPadding = true),
 )
@@ -93,6 +95,14 @@ fun overlayTextStyle(fontSize: TextUnit): TextStyle = TextStyle(
 @Composable
 fun onVideoTextStyle(fontSize: TextUnit, includeFontPadding: Boolean = false): TextStyle = TextStyle(
     color = colorResource(R.color.on_video),
-    fontSize = fontSize,
+    fontSize = pixelRoundedFontSize(fontSize),
     platformStyle = PlatformTextStyle(includeFontPadding = includeFontPadding),
 )
+
+/**
+ * TextView rundet die Schriftgröße aus XML auf ganze Pixel (getDimensionPixelSize), Compose
+ * rechnet mit Bruchteilen – ohne Runden wären Zeilen und Titel ein bis zwei Pixel kleiner.
+ */
+@Composable
+fun pixelRoundedFontSize(fontSize: TextUnit): TextUnit =
+    with(LocalDensity.current) { fontSize.toPx().roundToInt().toSp() }
