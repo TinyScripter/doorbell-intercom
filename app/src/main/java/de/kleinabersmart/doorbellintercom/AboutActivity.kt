@@ -1,16 +1,18 @@
 package de.kleinabersmart.doorbellintercom
 
-import android.view.ViewGroup
-import de.kleinabersmart.doorbellintercom.databinding.SettingsAboutBinding
+import androidx.compose.runtime.Composable
+import de.kleinabersmart.doorbellintercom.ui.settings.AboutScreen
 
-/** Über / Lizenzen: eigene Lizenz (GPLv3) und Hinweise auf verwendete Fremdkomponenten (reolink_aio, MIT). */
+/**
+ * Über / Lizenzen: eigene Lizenz (GPLv3) und Hinweise auf verwendete Fremdkomponenten (reolink_aio, MIT).
+ * Die Oberfläche ist Compose (AboutScreen); die Activity liefert nur die Versionsbezeichnung.
+ */
 class AboutActivity : SettingsBaseActivity() {
 
     override val titleRes = R.string.section_about
 
-    override fun onCreateContent(container: ViewGroup) {
-        val binding = SettingsAboutBinding.inflate(layoutInflater, container)
+    override fun createContent(): @Composable () -> Unit {
         val versionName = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
-        binding.textVersion.text = getString(R.string.about_version, versionName)
+        return { AboutScreen(versionName = versionName, onNavigateUp = ::finish) }
     }
 }

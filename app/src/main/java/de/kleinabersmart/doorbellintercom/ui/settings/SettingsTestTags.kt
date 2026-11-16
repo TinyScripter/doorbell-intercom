@@ -72,6 +72,13 @@ object SettingsTestTags {
     const val FIELD_WIREGUARD_TUNNEL = "field_wireguard_tunnel"
     const val SWITCH_SILENT_WHEN_UNREACHABLE = "switch_silent_when_unreachable"
 
+    // Klingel-Protokoll (settings_ring_log.xml)
+    const val RING_LOG_TEXT = "ring_log_text"
+    const val BTN_COPY_RING_LOG = "btn_copy_ring_log"
+
+    // Über / Lizenzen (settings_about.xml)
+    const val ABOUT_VERSION = "about_version"
+
     /** Systemcheck-Hinweis an Position [index] (vorher Kind [index] von checkList). */
     fun checkIssue(index: Int) = "check_issue_$index"
 }

@@ -11,10 +11,6 @@ import android.os.Looper
 import android.os.PowerManager
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ScrollView
-import android.widget.TextView
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -27,6 +23,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertRangeInfoEquals
@@ -44,7 +41,6 @@ import androidx.test.core.app.ApplicationProvider
 import de.kleinabersmart.doorbellintercom.ui.settings.SettingsEntry
 import de.kleinabersmart.doorbellintercom.ui.settings.SettingsTestTags
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -72,29 +68,28 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 /**
- * Baseline screenshot tests of the settings screens (activity_settings.xml scaffold with
- * settings_main/camera/ringing/push/connections/ring_log/about.xml and item_settings_entry.xml).
+ * Screenshot tests of the settings screens. Written as the baseline of the XML layouts
+ * (activity_settings.xml scaffold with settings_main/camera/ringing/push/connections/ring_log/about.xml
+ * and item_settings_entry.xml); since the pages were replaced by Compose (SettingsScreen,
+ * CameraSettingsScreen, ...) the same test methods drive the same scenarios on the Compose pages,
+ * with the former View checks expressed as Compose semantics (test tags from SettingsTestTags),
+ * and keep their capture names.
  *
  * The real Activities are launched with `Robolectric.buildActivity(...).setup()` (create, start,
  * resume): under Robolectric their side effects are harmless. Section pages only write the
- * already normalized seed values back in onCreate (no change, so no service/push restart; persist
- * would only run on pause/finish, which the tests never trigger), the WireGuard permission is
- * granted beforehand so ConnectionsSettingsActivity requests nothing, and SystemCheck reads the
- * notification/power shadows that each test sets explicitly.
+ * already normalized seed values back in onCreate (no change, so no service/push restart; closing
+ * a page persists the same values again), the WireGuard permission is granted beforehand so
+ * ConnectionsSettingsActivity requests nothing, and SystemCheck reads the notification/power
+ * shadows that each test sets explicitly.
  *
  * Every screen is captured twice:
  *  - `_01_initial`: the window (decor view) at the regular device size, like the other screenshot tests.
  *  - `_02_fullContent`: the same screen relaunched in a tall window ([FULL_HEIGHT_QUALIFIER]) so the
- *    whole scroll content is visible without scrolling; the test asserts that nothing is left to scroll.
- * The QR dialog is captured as its own window (dialog decor view). Before each window capture the
- * main looper is idled and the ScrollView scrollbar is disabled (see [capture]).
+ *    whole scroll content is visible without scrolling; the test asserts that the scroll range is 0.
+ * The first Activity is closed before the tall relaunch (and every Activity after each test), so
+ * that only one Compose hierarchy is attached. The QR dialog is captured as its own window (the
+ * decor view of the Compose AlertDialog). Before each capture the main looper and Compose are idled.
  * The main settings page reads SystemCheck; its state is forced with [setSystemCheck].
- *
- * Pages already migrated to Compose (SettingsActivity) keep their test methods, scenarios and
- * capture names; the former View checks are expressed as Compose semantics (test tags from
- * SettingsTestTags), the full-content check asserts that the Compose scroll range is 0, and the
- * QR dialog is the window of the Compose AlertDialog. Before the tall relaunch the first Activity
- * is closed so that only one Compose hierarchy is attached.
  *
  * Device: Pixel 9 class phone (1080 x 2424 px at 420 dpi = 411 x 923 dp), light mode, values/ strings.
  * AppConfig is seeded with fixed values ([seedConfig]) before each launch. Screenshots go to
@@ -377,11 +372,12 @@ class SettingsScreenshotTest {
     @Test
     fun settingsRingLogEmpty() {
         captureScreen(RingLogActivity::class.java, "settingsRingLogEmpty") { activity ->
-            assertTitle(activity, R.string.section_ring_log)
-            assertEquals(activity.getString(R.string.ring_log_empty), activity.findViewById<TextView>(R.id.textRingLog).text.toString())
-            val copy = activity.findViewById<Button>(R.id.btnCopyRingLog)
-            assertTrue(copy.isShown)
-            assertFalse(copy.isEnabled)
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.section_ring_log)
+            composeTestRule.onNodeWithTag(SettingsTestTags.RING_LOG_TEXT)
+                .assertTextEquals(activity.getString(R.string.ring_log_empty))
+            composeTestRule.onNodeWithTag(SettingsTestTags.BTN_COPY_RING_LOG).assertIsDisplayed().assertIsNotEnabled()
+                .assertTextEquals(activity.getString(R.string.btn_copy))
         }
     }
 
@@ -391,37 +387,36 @@ class SettingsScreenshotTest {
         val config = AppConfig(app)
         RING_LOG_ENTRIES.reversed().forEach(config::appendRingLogEntry)
         captureScreen(RingLogActivity::class.java, "settingsRingLogEntries") { activity ->
-            assertTitle(activity, R.string.section_ring_log)
-            assertEquals(RING_LOG_ENTRIES.joinToString("\n"), activity.findViewById<TextView>(R.id.textRingLog).text.toString())
-            val copy = activity.findViewById<Button>(R.id.btnCopyRingLog)
-            assertTrue(copy.isShown)
-            assertTrue(copy.isEnabled)
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.section_ring_log)
+            composeTestRule.onNodeWithTag(SettingsTestTags.RING_LOG_TEXT).assertTextEquals(RING_LOG_ENTRIES.joinToString("\n"))
+            composeTestRule.onNodeWithTag(SettingsTestTags.BTN_COPY_RING_LOG).assertIsDisplayed().assertIsEnabled()
+                .assertTextEquals(activity.getString(R.string.btn_copy))
         }
     }
 
     @Test
     fun settingsAbout() {
         captureScreen(AboutActivity::class.java, "settingsAbout") { activity ->
-            assertTitle(activity, R.string.section_about)
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.section_about)
             val versionName = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName.orEmpty()
             println("VERSION_NAME: $versionName")
-            assertEquals(activity.getString(R.string.about_version, versionName), activity.findViewById<TextView>(R.id.textVersion).text.toString())
+            composeTestRule.onNodeWithTag(SettingsTestTags.ABOUT_VERSION)
+                .assertTextEquals(activity.getString(R.string.about_version, versionName))
             for (text in listOf(
                 R.string.about_third_party_title,
                 R.string.about_libraries_title,
                 R.string.about_libraries_variant,
             )) {
-                assertNotNull("missing ${activity.resources.getResourceEntryName(text)}", findTextView(activity, activity.getString(text)))
+                // Composed (formerly: a shown TextView with this text), not necessarily on screen.
+                composeTestRule.onNode(hasText(activity.getString(text)), useUnmergedTree = true)
+                    .assertExists("missing ${activity.resources.getResourceEntryName(text)}")
             }
         }
     }
 
     // ---- Shared checks -------------------------------------------------------------------------
-
-    private fun assertTitle(activity: Activity, titleRes: Int) {
-        assertEquals(activity.getString(titleRes), activity.title.toString())
-        assertNotNull(findTextView(activity, activity.getString(titleRes)))
-    }
 
     /** The Compose path really ran: the content view is the ComposeView of setContent. */
     private fun assertComposeHosted(activity: Activity) {
@@ -521,19 +516,6 @@ class SettingsScreenshotTest {
     private fun composeText(tag: String): String =
         composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.Text].joinToString("") { it.text }
 
-    private fun findTextView(activity: Activity, text: String): TextView? =
-        findViews(activity.window.decorView, TextView::class.java).firstOrNull { it.text.toString() == text && it.isShown }
-
-    private fun <T : View> findViews(root: View, type: Class<T>): List<T> {
-        val result = mutableListOf<T>()
-        fun visit(view: View) {
-            if (type.isInstance(view)) result += type.cast(view)!!
-            if (view is ViewGroup) for (i in 0 until view.childCount) visit(view.getChildAt(i))
-        }
-        visit(root)
-        return result
-    }
-
     // ---- Launch & capture ----------------------------------------------------------------------
 
     private fun <T : Activity> launch(type: Class<T>): T {
@@ -541,10 +523,9 @@ class SettingsScreenshotTest {
         controllers += controller
         val activity = controller.get()
         settle()
-        // Touch mode like a phone: no EditText gets initial focus, so no cursor is drawn.
+        // Touch mode like a phone: no text field gets initial focus, so no cursor is drawn.
         assertTrue(activity.window.decorView.isInTouchMode)
-        assertFalse("unexpected focus: ${activity.currentFocus}", activity.currentFocus is EditText)
-        if (isComposeHosted(activity)) composeTestRule.onAllNodes(isFocused()).assertCountEquals(0)
+        composeTestRule.onAllNodes(isFocused()).assertCountEquals(0)
         return activity
     }
 
@@ -566,22 +547,14 @@ class SettingsScreenshotTest {
         capture(tall, "${method}_02_fullContent")
     }
 
-    /** Nothing left to scroll in the tall window: ScrollView (XML pages) or verticalScroll (Compose pages). */
+    /** Nothing left to scroll in the tall window (formerly: ScrollView content <= viewport, cannot scroll). */
     private fun assertFullContentFits(activity: Activity, method: String) {
         val density = activity.resources.displayMetrics.density
-        if (isComposeHosted(activity)) {
-            val content = composeTestRule.onNodeWithTag(SettingsTestTags.CONTENT).fetchSemanticsNode()
-            val range = content.config[SemanticsProperties.VerticalScrollAxisRange]
-            println("CONTENT_SCROLL $method: max ${range.maxValue() / density} dp in viewport ${content.size.height / density} dp")
-            assertEquals("content of $method does not fit into the tall window", 0f, range.maxValue(), 0f)
-            assertEquals(0f, range.value(), 0f)
-            return
-        }
-        val scroll = activity.findViewById<View>(R.id.settingsContent).parent as ScrollView
-        val content = scroll.getChildAt(0)
-        println("CONTENT_HEIGHT $method: ${content.height / density} dp in viewport ${scroll.height / density} dp")
-        assertTrue("content of $method does not fit into the tall window", content.height <= scroll.height)
-        assertFalse(scroll.canScrollVertically(1))
+        val content = composeTestRule.onNodeWithTag(SettingsTestTags.CONTENT).fetchSemanticsNode()
+        val range = content.config[SemanticsProperties.VerticalScrollAxisRange]
+        println("CONTENT_SCROLL $method: max ${range.maxValue() / density} dp in viewport ${content.size.height / density} dp")
+        assertEquals("content of $method does not fit into the tall window", 0f, range.maxValue(), 0f)
+        assertEquals(0f, range.value(), 0f)
     }
 
     /** Pauses, stops and destroys the Activities launched so far (like leaving the page). */
@@ -592,24 +565,21 @@ class SettingsScreenshotTest {
     }
 
     /**
-     * Idles the main looper and, if a Compose page is open, waits for Compose to be idle. Without
-     * any Compose hierarchy (XML pages, after [closeActivities]) waitForIdle would first wait 2 s
-     * for one to appear, hence only with a Compose page.
+     * Idles the main looper and, if a page is open, waits for Compose to be idle. Without any
+     * Compose hierarchy (after [closeActivities]) waitForIdle would first wait 2 s for one to
+     * appear, hence only with an open page.
      */
     private fun settle() {
-        if (controllers.any { isComposeHosted(it.get()) }) composeTestRule.waitForIdle()
+        if (controllers.isNotEmpty()) composeTestRule.waitForIdle()
         shadowOf(Looper.getMainLooper()).idle()
     }
 
     /**
-     * Draws the whole window (decor view) onto an opaque bitmap, as the Compose counterpart will.
-     * The ScrollView scrollbar is switched off first: on a device it fades out shortly after launch,
-     * under Robolectric it stays visible (even with the clock advanced), and Compose's
-     * verticalScroll draws none.
+     * Draws the whole window (decor view) onto an opaque bitmap. (The XML baseline switched the
+     * ScrollView scrollbar off first; Compose's verticalScroll draws none.)
      */
     private fun capture(activity: Activity, fileName: String) {
         settle()
-        findViews(activity.window.decorView, ScrollView::class.java).forEach { it.isVerticalScrollBarEnabled = false }
         captureView(activity.window.decorView, fileName)
     }
 
