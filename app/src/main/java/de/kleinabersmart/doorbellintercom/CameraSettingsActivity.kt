@@ -1,65 +1,66 @@
 package de.kleinabersmart.doorbellintercom
 
-import android.view.ViewGroup
-import de.kleinabersmart.doorbellintercom.databinding.SettingsCameraBinding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import de.kleinabersmart.doorbellintercom.ui.settings.CameraSettingsScreen
+import de.kleinabersmart.doorbellintercom.ui.settings.CameraSettingsUiState
 
-/** Einstellungen: Kamera (Adresse, Zugangsdaten, Video, Mikrofon). */
+/**
+ * Einstellungen: Kamera (Adresse, Zugangsdaten, Video, Mikrofon).
+ *
+ * Die Oberfläche ist Compose (CameraSettingsScreen). Der Zustand liegt als Snapshot-State in der
+ * Activity, damit [saveFieldsIntoConfig] ihn jederzeit synchron lesen kann (direkt nach onCreate,
+ * in onPause und in finish), unabhängig davon, ob schon gezeichnet wurde.
+ */
 class CameraSettingsActivity : SettingsSectionActivity() {
 
-    private lateinit var binding: SettingsCameraBinding
+    private val uiState = mutableStateOf(CameraSettingsUiState())
 
     override val titleRes = R.string.section_camera
 
-    override fun onCreateContent(container: ViewGroup) {
-        binding = SettingsCameraBinding.inflate(layoutInflater, container)
-        binding.sliderMicGain.addOnChangeListener { _, value, _ -> showMicGain(value.toInt()) }
-        binding.sliderVideoStartBuffer.addOnChangeListener { _, value, _ -> showVideoStartBuffer(value.toInt()) }
-        binding.sliderVideoRebuffer.addOnChangeListener { _, value, _ -> showVideoRebuffer(value.toInt()) }
+    override fun createContent(): @Composable () -> Unit {
+        uiState.value = loadFromConfig()
+        return {
+            CameraSettingsScreen(
+                state = uiState.value,
+                onStateChange = { uiState.value = it },
+                onNavigateUp = ::finish,
+            )
+        }
+    }
 
-        binding.editCameraHost.setText(config.cameraHost)
-        binding.editCameraBcPort.setText(config.cameraBcPort.toString())
-        binding.editCameraUser.setText(config.cameraUsername)
-        binding.editCameraPass.setText(config.cameraPassword)
-        binding.editCameraRtspPath.setText(config.cameraRtspPath)
-        binding.checkKeepAspectRatio.isChecked = config.keepAspectRatio
-        // Auf die Schrittweite des Reglers runden, sonst wirft der Slider eine Exception.
+    private fun loadFromConfig(): CameraSettingsUiState {
+        // Auf die Schrittweiten der Regler (100 %, 50 bzw. 100 ms) runden und begrenzen.
         val micGain = ((config.micGainPercent + 50) / 100 * 100).coerceIn(100, 2000)
-        binding.sliderMicGain.value = micGain.toFloat()
-        showMicGain(micGain)
-        binding.checkDuckWhileTalking.isChecked = config.duckWhileTalking
-        // Auf die Schrittweiten der Regler (50 bzw. 100 ms) runden.
         val startBuffer = ((config.videoStartBufferMs + 25) / 50 * 50)
             .coerceIn(AppConfig.VIDEO_START_BUFFER_MIN_MS, AppConfig.VIDEO_START_BUFFER_MAX_MS)
-        binding.sliderVideoStartBuffer.value = startBuffer.toFloat()
-        showVideoStartBuffer(startBuffer)
         val rebuffer = ((config.videoRebufferMs + 50) / 100 * 100)
             .coerceIn(AppConfig.VIDEO_REBUFFER_MIN_MS, AppConfig.VIDEO_REBUFFER_MAX_MS)
-        binding.sliderVideoRebuffer.value = rebuffer.toFloat()
-        showVideoRebuffer(rebuffer)
+        return CameraSettingsUiState(
+            host = config.cameraHost,
+            bcPort = config.cameraBcPort.toString(),
+            user = config.cameraUsername,
+            password = config.cameraPassword,
+            rtspPath = config.cameraRtspPath,
+            keepAspectRatio = config.keepAspectRatio,
+            micGainPercent = micGain,
+            duckWhileTalking = config.duckWhileTalking,
+            videoStartBufferMs = startBuffer,
+            videoRebufferMs = rebuffer,
+        )
     }
 
     override fun saveFieldsIntoConfig() {
-        config.cameraHost = binding.editCameraHost.text.toString().trim()
-        config.cameraBcPort = binding.editCameraBcPort.text.toString().toIntOrNull() ?: 9000
-        config.cameraUsername = binding.editCameraUser.text.toString().trim()
-        config.cameraPassword = binding.editCameraPass.text.toString()
-        config.cameraRtspPath = binding.editCameraRtspPath.text.toString().trim().trimStart('/')
-        config.keepAspectRatio = binding.checkKeepAspectRatio.isChecked
-        config.micGainPercent = binding.sliderMicGain.value.toInt()
-        config.duckWhileTalking = binding.checkDuckWhileTalking.isChecked
-        config.videoStartBufferMs = binding.sliderVideoStartBuffer.value.toInt()
-        config.videoRebufferMs = binding.sliderVideoRebuffer.value.toInt()
-    }
-
-    private fun showVideoStartBuffer(ms: Int) {
-        binding.textVideoStartBuffer.text = getString(R.string.label_video_start_buffer, ms)
-    }
-
-    private fun showVideoRebuffer(ms: Int) {
-        binding.textVideoRebuffer.text = getString(R.string.label_video_rebuffer, ms)
-    }
-
-    private fun showMicGain(percent: Int) {
-        binding.textMicGain.text = getString(R.string.label_mic_gain, percent)
+        val state = uiState.value
+        config.cameraHost = state.host.trim()
+        config.cameraBcPort = state.bcPort.toIntOrNull() ?: 9000
+        config.cameraUsername = state.user.trim()
+        config.cameraPassword = state.password
+        config.cameraRtspPath = state.rtspPath.trim().trimStart('/')
+        config.keepAspectRatio = state.keepAspectRatio
+        config.micGainPercent = state.micGainPercent
+        config.duckWhileTalking = state.duckWhileTalking
+        config.videoStartBufferMs = state.videoStartBufferMs
+        config.videoRebufferMs = state.videoRebufferMs
     }
 }

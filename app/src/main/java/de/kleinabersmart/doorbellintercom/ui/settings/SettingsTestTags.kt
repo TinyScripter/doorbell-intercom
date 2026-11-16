@@ -29,6 +29,30 @@ object SettingsTestTags {
     const val BTN_QR_IMPORT_CONFIRM = "btn_qr_import_confirm"
     const val BTN_QR_IMPORT_CANCEL = "btn_qr_import_cancel"
 
+    // Kamera (settings_camera.xml)
+    const val FIELD_CAMERA_HOST = "field_camera_host"
+    const val FIELD_CAMERA_BC_PORT = "field_camera_bc_port"
+    const val FIELD_CAMERA_USER = "field_camera_user"
+    const val FIELD_CAMERA_PASS = "field_camera_pass"
+    const val FIELD_CAMERA_RTSP_PATH = "field_camera_rtsp_path"
+    const val CHECK_KEEP_ASPECT_RATIO = "check_keep_aspect_ratio"
+    const val CHECK_DUCK_WHILE_TALKING = "check_duck_while_talking"
+    const val LABEL_MIC_GAIN = "label_mic_gain"
+    const val SLIDER_MIC_GAIN = "slider_mic_gain"
+    const val LABEL_VIDEO_START_BUFFER = "label_video_start_buffer"
+    const val SLIDER_VIDEO_START_BUFFER = "slider_video_start_buffer"
+    const val LABEL_VIDEO_REBUFFER = "label_video_rebuffer"
+    const val SLIDER_VIDEO_REBUFFER = "slider_video_rebuffer"
+
+    // Klingel (settings_ringing.xml)
+    const val LABEL_RING_DURATION = "label_ring_duration"
+    const val SLIDER_RING_DURATION = "slider_ring_duration"
+    const val LABEL_RINGTONE = "label_ringtone"
+    const val BTN_CHOOSE_RINGTONE = "btn_choose_ringtone"
+    const val SWITCH_RING_IN_SILENT_MODE = "switch_ring_in_silent_mode"
+    const val SWITCH_TELECOM_CALLS = "switch_telecom_calls"
+    const val TELECOM_CALLS_SUMMARY = "telecom_calls_summary"
+
     /** Systemcheck-Hinweis an Position [index] (vorher Kind [index] von checkList). */
     fun checkIssue(index: Int) = "check_issue_$index"
 }

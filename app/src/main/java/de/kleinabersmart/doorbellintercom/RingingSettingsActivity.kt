@@ -3,15 +3,22 @@ package de.kleinabersmart.doorbellintercom
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
-import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.IntentCompat
-import de.kleinabersmart.doorbellintercom.databinding.SettingsRingingBinding
+import de.kleinabersmart.doorbellintercom.ui.settings.RingingSettingsScreen
+import de.kleinabersmart.doorbellintercom.ui.settings.RingingSettingsUiState
 
-/** Einstellungen: Klingel (Klingeldauer, Klingelton, Verhalten im Lautlos-Modus, als Anruf einbinden). */
+/**
+ * Einstellungen: Klingel (Klingeldauer, Klingelton, Verhalten im Lautlos-Modus, als Anruf einbinden).
+ *
+ * Die Oberfläche ist Compose (RingingSettingsScreen); der Zustand liegt als Snapshot-State in der
+ * Activity, damit [saveFieldsIntoConfig] ihn synchron lesen kann.
+ */
 class RingingSettingsActivity : SettingsSectionActivity() {
 
-    private lateinit var binding: SettingsRingingBinding
+    private val uiState = mutableStateOf(RingingSettingsUiState())
 
     /** Gewählter Klingelton; wird beim Verlassen der Seite (bzw. beim Öffnen des Dialogs) übernommen. */
     private lateinit var selectedRingtoneUri: Uri
@@ -25,30 +32,36 @@ class RingingSettingsActivity : SettingsSectionActivity() {
                 IntentCompat.getParcelableExtra(it, RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
             } ?: return@registerForActivityResult
             selectedRingtoneUri = uri
-            showRingtone(uri)
+            uiState.value = uiState.value.copy(ringtoneTitle = ringtoneTitle(uri))
         }
 
-    override fun onCreateContent(container: ViewGroup) {
-        binding = SettingsRingingBinding.inflate(layoutInflater, container)
-        binding.sliderRingDuration.addOnChangeListener { _, value, _ -> showRingDuration(value.toInt()) }
-        binding.btnChooseRingtone.setOnClickListener { chooseRingtone() }
-
+    override fun createContent(): @Composable () -> Unit {
+        selectedRingtoneUri = config.ringtoneUri
         // Auf die Schrittweite des Reglers (5 s) runden.
         val ringDuration = ((config.ringDurationSeconds + 2) / 5 * 5)
             .coerceIn(AppConfig.RING_DURATION_MIN_SECONDS, AppConfig.RING_DURATION_MAX_SECONDS)
-        binding.sliderRingDuration.value = ringDuration.toFloat()
-        showRingDuration(ringDuration)
-        selectedRingtoneUri = config.ringtoneUri
-        showRingtone(selectedRingtoneUri)
-        binding.switchRingInSilentMode.isChecked = config.ringInSilentMode
-        binding.switchTelecomCalls.isChecked = config.telecomCalls
+        uiState.value = RingingSettingsUiState(
+            ringDurationSeconds = ringDuration,
+            ringtoneTitle = ringtoneTitle(selectedRingtoneUri),
+            ringInSilentMode = config.ringInSilentMode,
+            telecomCalls = config.telecomCalls,
+        )
+        return {
+            RingingSettingsScreen(
+                state = uiState.value,
+                onStateChange = { uiState.value = it },
+                onChooseRingtone = ::chooseRingtone,
+                onNavigateUp = ::finish,
+            )
+        }
     }
 
     override fun saveFieldsIntoConfig() {
-        config.ringDurationSeconds = binding.sliderRingDuration.value.toInt()
+        val state = uiState.value
+        config.ringDurationSeconds = state.ringDurationSeconds
         config.ringtoneUri = selectedRingtoneUri
-        config.ringInSilentMode = binding.switchRingInSilentMode.isChecked
-        config.telecomCalls = binding.switchTelecomCalls.isChecked
+        config.ringInSilentMode = state.ringInSilentMode
+        config.telecomCalls = state.telecomCalls
     }
 
     private fun chooseRingtone() {
@@ -61,14 +74,8 @@ class RingingSettingsActivity : SettingsSectionActivity() {
         ringtonePickerLauncher.launch(intent)
     }
 
-    private fun showRingDuration(seconds: Int) {
-        binding.textRingDuration.text = getString(R.string.label_ring_duration, seconds)
-    }
-
-    private fun showRingtone(uri: Uri) {
-        // Der Titel kann fehlen, z. B. bei einem gelöschten oder nicht lesbaren Klingelton.
-        val title = runCatching { RingtoneManager.getRingtone(this, uri)?.getTitle(this) }.getOrNull()
+    /** Der Titel kann fehlen, z. B. bei einem gelöschten oder nicht lesbaren Klingelton. */
+    private fun ringtoneTitle(uri: Uri): String =
+        runCatching { RingtoneManager.getRingtone(this, uri)?.getTitle(this) }.getOrNull()
             ?: uri.lastPathSegment.orEmpty()
-        binding.textRingtone.text = getString(R.string.label_ringtone, title)
-    }
 }

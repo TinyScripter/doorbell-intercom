@@ -304,10 +304,11 @@ fun SettingsSliderRow(
     step: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    labelModifier: Modifier = Modifier,
     sliderModifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        SettingsText(text = label)
+        SettingsText(text = label, modifier = labelModifier)
         Slider(
             value = value.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },

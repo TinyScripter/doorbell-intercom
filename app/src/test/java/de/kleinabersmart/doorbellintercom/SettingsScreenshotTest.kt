@@ -18,6 +18,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -27,18 +28,21 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertRangeInfoEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.core.app.ApplicationProvider
 import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.slider.Slider
 import de.kleinabersmart.doorbellintercom.ui.settings.SettingsEntry
 import de.kleinabersmart.doorbellintercom.ui.settings.SettingsTestTags
 import org.junit.Assert.assertEquals
@@ -286,22 +290,28 @@ class SettingsScreenshotTest {
     @Test
     fun settingsCamera() {
         captureScreen(CameraSettingsActivity::class.java, "settingsCamera") { activity ->
-            assertTitle(activity, R.string.section_camera)
-            assertField(activity, R.id.editCameraHost, "192.168.178.40")
-            assertField(activity, R.id.editCameraBcPort, "9000")
-            assertField(activity, R.id.editCameraUser, "admin")
-            assertField(activity, R.id.editCameraPass, "doorbell-secret")
-            assertField(activity, R.id.editCameraRtspPath, "h264Preview_01_main")
-            assertTrue(activity.findViewById<CheckBox>(R.id.checkKeepAspectRatio).isChecked)
-            assertTrue(activity.findViewById<CheckBox>(R.id.checkDuckWhileTalking).isChecked)
-            assertSlider(activity, R.id.sliderMicGain, 300f, R.id.textMicGain, activity.getString(R.string.label_mic_gain, 300))
-            assertSlider(
-                activity, R.id.sliderVideoStartBuffer, 150f,
-                R.id.textVideoStartBuffer, activity.getString(R.string.label_video_start_buffer, 150),
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.section_camera)
+            assertComposeField(SettingsTestTags.FIELD_CAMERA_HOST, "192.168.178.40")
+            assertComposeField(SettingsTestTags.FIELD_CAMERA_BC_PORT, "9000")
+            assertComposeField(SettingsTestTags.FIELD_CAMERA_USER, "admin")
+            assertComposeField(SettingsTestTags.FIELD_CAMERA_PASS, "doorbell-secret", password = true)
+            // Raw password as onCreate wrote it back from the field state (saveFieldsIntoConfig).
+            assertEquals("doorbell-secret", AppConfig(activity).cameraPassword)
+            assertComposeField(SettingsTestTags.FIELD_CAMERA_RTSP_PATH, "h264Preview_01_main")
+            composeTestRule.onNodeWithTag(SettingsTestTags.CHECK_KEEP_ASPECT_RATIO).assertIsOn()
+            composeTestRule.onNodeWithTag(SettingsTestTags.CHECK_DUCK_WHILE_TALKING).assertIsOn()
+            assertComposeSlider(
+                SettingsTestTags.SLIDER_MIC_GAIN, 300f, 100f..2000f, steps = 18,
+                SettingsTestTags.LABEL_MIC_GAIN, activity.getString(R.string.label_mic_gain, 300),
             )
-            assertSlider(
-                activity, R.id.sliderVideoRebuffer, 400f,
-                R.id.textVideoRebuffer, activity.getString(R.string.label_video_rebuffer, 400),
+            assertComposeSlider(
+                SettingsTestTags.SLIDER_VIDEO_START_BUFFER, 150f, 50f..1000f, steps = 18,
+                SettingsTestTags.LABEL_VIDEO_START_BUFFER, activity.getString(R.string.label_video_start_buffer, 150),
+            )
+            assertComposeSlider(
+                SettingsTestTags.SLIDER_VIDEO_REBUFFER, 400f, 100f..2000f, steps = 18,
+                SettingsTestTags.LABEL_VIDEO_REBUFFER, activity.getString(R.string.label_video_rebuffer, 400),
             )
         }
     }
@@ -309,20 +319,23 @@ class SettingsScreenshotTest {
     @Test
     fun settingsRinging() {
         captureScreen(RingingSettingsActivity::class.java, "settingsRinging") { activity ->
-            assertTitle(activity, R.string.section_ringing)
-            assertSlider(
-                activity, R.id.sliderRingDuration, 45f,
-                R.id.textRingDuration, activity.getString(R.string.label_ring_duration, 45),
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.section_ringing)
+            assertComposeSlider(
+                SettingsTestTags.SLIDER_RING_DURATION, 45f, 10f..90f, steps = 15,
+                SettingsTestTags.LABEL_RING_DURATION, activity.getString(R.string.label_ring_duration, 45),
             )
             // Title of the default ringtone as Robolectric resolves it (deterministic, no media provider).
-            val ringtone = activity.findViewById<TextView>(R.id.textRingtone).text.toString()
+            val ringtone = composeText(SettingsTestTags.LABEL_RINGTONE)
             val prefix = activity.getString(R.string.label_ringtone, "")
             assertTrue("ringtone label: $ringtone", ringtone.startsWith(prefix) && ringtone.length > prefix.length)
             println("RINGTONE_LABEL: $ringtone")
-            assertTrue(activity.findViewById<Button>(R.id.btnChooseRingtone).isShown)
-            assertTrue(activity.findViewById<MaterialSwitch>(R.id.switchRingInSilentMode).isChecked)
-            assertFalse(activity.findViewById<MaterialSwitch>(R.id.switchTelecomCalls).isChecked)
-            assertNotNull(findTextView(activity, activity.getString(R.string.switch_telecom_calls_summary)))
+            composeTestRule.onNodeWithTag(SettingsTestTags.BTN_CHOOSE_RINGTONE).assertIsDisplayed().assertHasClickAction()
+                .assertTextEquals(activity.getString(R.string.btn_choose_ringtone))
+            composeTestRule.onNodeWithTag(SettingsTestTags.SWITCH_RING_IN_SILENT_MODE).assertIsOn()
+            composeTestRule.onNodeWithTag(SettingsTestTags.SWITCH_TELECOM_CALLS).assertIsOff()
+            composeTestRule.onNodeWithTag(SettingsTestTags.TELECOM_CALLS_SUMMARY).assertIsDisplayed()
+                .assertTextEquals(activity.getString(R.string.switch_telecom_calls_summary))
         }
     }
 
@@ -480,10 +493,33 @@ class SettingsScreenshotTest {
         assertEquals(expected, activity.findViewById<EditText>(id).text.toString())
     }
 
-    private fun assertSlider(activity: Activity, sliderId: Int, value: Float, labelId: Int, label: String) {
-        assertEquals(value, activity.findViewById<Slider>(sliderId).value, 0f)
-        assertEquals(label, activity.findViewById<TextView>(labelId).text.toString())
+    /**
+     * Text field content (formerly EditText.text). Password fields only expose the masked text (one
+     * bullet per character, like the screen) and must be marked as password; their raw value is
+     * checked by the caller via AppConfig.
+     */
+    private fun assertComposeField(tag: String, expected: String, password: Boolean = false) {
+        val config = composeTestRule.onNodeWithTag(tag).assertExists().fetchSemanticsNode().config
+        assertEquals("password semantics of $tag", password, SemanticsProperties.Password in config)
+        val shown = if (password) PASSWORD_MASK.toString().repeat(expected.length) else expected
+        assertEquals(shown, config[SemanticsProperties.EditableText].text)
     }
+
+    /** Slider value, range and steps (formerly Slider.value) plus its live label above. */
+    private fun assertComposeSlider(
+        sliderTag: String,
+        value: Float,
+        range: ClosedFloatingPointRange<Float>,
+        steps: Int,
+        labelTag: String,
+        label: String,
+    ) {
+        composeTestRule.onNodeWithTag(sliderTag).assertRangeInfoEquals(ProgressBarRangeInfo(value, range, steps))
+        composeTestRule.onNodeWithTag(labelTag).assertTextEquals(label)
+    }
+
+    private fun composeText(tag: String): String =
+        composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.Text].joinToString("") { it.text }
 
     private fun findTextView(activity: Activity, text: String): TextView? =
         findViews(activity.window.decorView, TextView::class.java).firstOrNull { it.text.toString() == text && it.isShown }
@@ -508,6 +544,7 @@ class SettingsScreenshotTest {
         // Touch mode like a phone: no EditText gets initial focus, so no cursor is drawn.
         assertTrue(activity.window.decorView.isInTouchMode)
         assertFalse("unexpected focus: ${activity.currentFocus}", activity.currentFocus is EditText)
+        if (isComposeHosted(activity)) composeTestRule.onAllNodes(isFocused()).assertCountEquals(0)
         return activity
     }
 
@@ -613,6 +650,9 @@ class SettingsScreenshotTest {
 
         /** Tags of the navigation entries (SettingsEntry.testTag) and setup-check hints (SettingsTestTags.checkIssue). */
         private const val ENTRY_TAG_PREFIX = "entry_"
+
+        /** Mask character of PasswordVisualTransformation (as PasswordTransformationMethod). */
+        private const val PASSWORD_MASK = '•'
         private const val CHECK_ISSUE_TAG_PREFIX = "check_issue_"
 
         /** Newest first, as RingLogActivity shows them (format of CallController). */
