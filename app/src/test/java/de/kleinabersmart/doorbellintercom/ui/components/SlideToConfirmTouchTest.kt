@@ -1,4 +1,4 @@
-package de.kleinabersmart.doorbellintercom
+package de.kleinabersmart.doorbellintercom.ui.components
 
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -16,10 +16,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performSemanticsAction
-import de.kleinabersmart.doorbellintercom.ui.components.SlideConfirmRequest
-import de.kleinabersmart.doorbellintercom.ui.components.SlideToConfirm
-import de.kleinabersmart.doorbellintercom.ui.components.SlideToConfirmDefaults
-import de.kleinabersmart.doorbellintercom.ui.components.toggled
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -29,14 +25,14 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Die ursprünglichen Fälle des Tür-Sliders, seit dem Umstieg auf Compose gegen [SlideToConfirm]:
+ * Die ursprünglichen Fälle des Tür-Sliders (früher SlideToConfirmViewTest) gegen [SlideToConfirm]:
  * eingebettet über eine [ComposeView] in ein View-Layout mit fester Pixelgröße und bedient mit
- * echten MotionEvents, wie vorher der View. Was ein Bestätigen auslöst und das Ausblenden
+ * echten MotionEvents statt der Gesten der Compose-Testregel (siehe [SlideToConfirmTest]). Was ein Bestätigen auslöst und das Ausblenden
  * (`request = null`) entscheidet wie in beiden Activities der Host; [toggle] entspricht dem
  * Tippen auf den Tür-Button. Die Zeit läuft über die Uhr der Compose-Testregel.
  */
 @RunWith(RobolectricTestRunner::class)
-class SlideToConfirmViewTest {
+class SlideToConfirmTouchTest {
 
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
