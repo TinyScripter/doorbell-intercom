@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.kleinabersmart.doorbellintercom.R
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
+import de.kleinabersmart.doorbellintercom.ui.theme.viewTextColorSecondary
 
 /**
  * Text mit klickbaren Web-Adressen (vorher TextView mit android:autoLink="web"). Die Adressen
@@ -41,7 +42,7 @@ fun AutoLinkText(
     }
     Text(
         text = annotated,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = viewTextColorSecondary(),
         style = textViewStyle(14.sp),
         modifier = modifier,
     )

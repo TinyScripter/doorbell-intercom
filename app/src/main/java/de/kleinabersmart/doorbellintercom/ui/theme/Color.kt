@@ -27,10 +27,11 @@ val RippleOnLight = Color(0x33000000)
 
 /**
  * Zurück-Pfeil in der blauen Leiste der Einstellungen, in Hell und Dunkel gleich: die frühere
- * Toolbar lief mit dem Dark-ActionBar-Overlay von Material 3, das den Pfeil in dessen heller
- * Textfarbe (m3_sys_color_dark_on_surface) tönte – nicht in onPrimaryContainer wie den Titel.
+ * Toolbar zeichnete den Pfeil reinweiß (Pixelmessung der XML-Screenshots: #FFFFFF), nicht in
+ * der hellen Textfarbe des Dark-ActionBar-Overlays (#E6E0E9) und nicht in onPrimaryContainer
+ * wie den Titel.
  */
-val TopBarOnContainerIcon = Color(0xFFE6E0E9)
+val TopBarOnContainerIcon = Color(0xFFFFFFFF)
 
 // Verlauf wie android:angle="315": von links oben nach rechts unten, das ist die
 // Standardrichtung von Brush.linearGradient.

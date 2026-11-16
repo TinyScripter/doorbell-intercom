@@ -34,6 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.kleinabersmart.doorbellintercom.R
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
+import de.kleinabersmart.doorbellintercom.ui.theme.viewTextColorPrimary
+import de.kleinabersmart.doorbellintercom.ui.theme.viewTextColorSecondary
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /** Art des Eingabefelds, entspricht den bisherigen android:inputType-Werten. */
 enum class SettingsFieldType {
@@ -51,11 +55,12 @@ enum class SettingsFieldType {
 }
 
 // Geometrie des AppCompat-EditText-Hintergrunds (abc_edit_text_material): 4dp seitlich, oben 10dp,
-// die Linie sitzt 7dp über der Unterkante; dazwischen liegt der Rand der 9-Patch-Grafik.
+// die Unterkante der Linie sitzt 8dp über der Unterkante des Felds (gemessen: 21 px bei 420 dpi);
+// dazwischen liegt der Rand der 9-Patch-Grafik.
 private val FieldHorizontalInset = 4.dp
 private val FieldTopPadding = 10.dp
 private val FieldBottomPadding = 11.dp
-private val UnderlineBottomInset = 7.dp
+private val UnderlineBottomInset = 8.dp
 private val UnderlineThickness = 1.dp
 private val UnderlineThicknessFocused = 2.dp
 
@@ -86,10 +91,12 @@ fun SettingsTextField(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val colors = MaterialTheme.colorScheme
-    val lineColor = if (focused) colors.secondary else colors.onSurfaceVariant
+    // Unterstrich wie der mit colorControlNormal (= textColorSecondary der Views) getönte
+    // Hintergrund, bei Fokus colorControlActivated.
+    val lineColor = if (focused) colors.secondary else viewTextColorSecondary()
     val lineThickness = if (focused) UnderlineThicknessFocused else UnderlineThickness
-    // TextAppearance.AppCompat.Medium (18sp) in der primären Textfarbe.
-    val textStyle = textViewStyle(18.sp).copy(color = colors.onSurface)
+    // TextAppearance.AppCompat.Medium (18sp) in der primären Textfarbe der Views.
+    val textStyle = textViewStyle(18.sp).copy(color = viewTextColorPrimary())
 
     BasicTextField(
         value = value,
@@ -101,10 +108,13 @@ fun SettingsTextField(
             .fillMaxWidth()
             .drawBehind {
                 val inset = FieldHorizontalInset.toPx()
-                val thickness = lineThickness.toPx()
+                // Wie die 9-Patch-Grafik: ganze Pixel dick (2 px bei 420 dpi) und auf ganze Pixel
+                // gesetzt, sonst verschmiert die Linie über drei Pixelreihen.
+                val thickness = floor(lineThickness.toPx()).coerceAtLeast(1f)
+                val bottom = (size.height - UnderlineBottomInset.toPx()).roundToInt()
                 drawRect(
                     color = lineColor,
-                    topLeft = Offset(inset, size.height - UnderlineBottomInset.toPx() - thickness),
+                    topLeft = Offset(inset, bottom - thickness),
                     size = Size(size.width - 2 * inset, thickness),
                 )
             },

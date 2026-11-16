@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import de.kleinabersmart.doorbellintercom.R
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
 
@@ -155,7 +156,9 @@ private fun BackupCard(
 
 /**
  * QR-Code zum Übertragen der Einstellungen (vorher MaterialAlertDialog mit ImageView): Titel,
- * Warnhinweis, darunter der Code über die volle Breite mit 16dp Rand und "Schließen".
+ * Warnhinweis, darunter der Code über die volle Breite mit 16dp Rand und "Schließen". Wie beim
+ * MaterialAlertDialog (backgroundInsetStart/End 24dp) reicht die Karte bis 24dp an den
+ * Fensterrand, statt der schmaleren Plattform-Standardbreite.
  */
 @Composable
 private fun QrCodeDialog(bitmap: ImageBitmap, onDismiss: () -> Unit) {
@@ -179,9 +182,15 @@ private fun QrCodeDialog(bitmap: ImageBitmap, onDismiss: () -> Unit) {
                 Text(text = stringResource(R.string.btn_close))
             }
         },
-        modifier = Modifier.testTag(SettingsTestTags.QR_DIALOG),
+        modifier = Modifier
+            .padding(horizontal = QrDialogHorizontalInset)
+            .testTag(SettingsTestTags.QR_DIALOG),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     )
 }
+
+/** Seitlicher Abstand der QR-Dialogkarte zum Fensterrand (MaterialAlertDialog-Hintergrund-Inset). */
+private val QrDialogHorizontalInset = 24.dp
 
 /** Rückfrage vor dem Übernehmen eines eingelesenen QR-Codes; überschreibt alle Einstellungen. */
 @Composable

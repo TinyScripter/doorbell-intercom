@@ -1,13 +1,17 @@
 package de.kleinabersmart.doorbellintercom.ui.settings
 
 import android.content.res.Configuration
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -25,6 +29,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,20 +38,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import de.kleinabersmart.doorbellintercom.R
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
 import de.kleinabersmart.doorbellintercom.ui.theme.pixelRoundedFontSize
+import de.kleinabersmart.doorbellintercom.ui.theme.viewTextColorPrimary
+import de.kleinabersmart.doorbellintercom.ui.theme.viewTextColorSecondary
 import kotlin.math.roundToInt
 
 // Maße aus Widget.DoorbellIntercom.SettingsCard (themes.xml).
@@ -75,6 +89,110 @@ private val ButtonBorderWidth = 1.dp
 /** Deckkraft des Rahmens deaktivierter Buttons (Material 3: onSurface 12 %). */
 private const val DisabledBorderAlpha = 0.12f
 
+/** Deckkraft der Beschriftung deaktivierter Buttons (Material 3: onSurface 38 %). */
+private const val DisabledContentAlpha = 0.38f
+
+/**
+ * Mindestbreite des Material-Buttons, geerbt von AppCompat (abc_button_min_width_material);
+ * Compose hat nur ButtonDefaults.MinWidth = 58dp.
+ */
+private val ButtonMinWidth = 88.dp
+
+/** Laufweite von TextAppearance.Material3.BodySmall (MDC), relativ zur Schriftgröße. */
+private val BodySmallLetterSpacing = 0.0333333333.em
+
+/** Laufweite von TextAppearance.Material3.BodyMedium (MDC), relativ zur Schriftgröße. */
+private val BodyMediumLetterSpacing = 0.0178571429.em
+
+/**
+ * Zeilenumbruch wie bei TextView (BREAK_STRATEGY_HIGH_QUALITY ohne LineBreakConfig); ohne
+ * Angabe bricht Compose einfach (greedy) um, und Absätze würden anders umbrechen.
+ */
+internal val TextViewLineBreak = LineBreak(
+    strategy = LineBreak.Strategy.HighQuality,
+    strictness = LineBreak.Strictness.Default,
+    wordBreak = LineBreak.WordBreak.Default,
+)
+
+/**
+ * Compose rundet die Zeilenhöhe in Pixeln auf (ceil); der kleine Abzug verhindert, dass eine
+ * Rundungsungenauigkeit von px → sp → px aus 42 px eine 43 px hohe Zeile macht.
+ */
+private const val LineHeightRoundingSlackPx = 0.01f
+
+/**
+ * Schrift mit den Zeilenmaßen einer TextView: [style] für den Text, [fontPadding] als
+ * Innenabstand direkt um den Text (innerhalb der Außenabstände des Aufrufers).
+ */
+@Immutable
+internal data class TextViewTextStyle(
+    val style: TextStyle,
+    val fontPadding: PaddingValues,
+)
+
+/**
+ * Bildet die Zeilenmaße einer TextView mit Zeilenabstand exakt nach, die Compose von sich aus
+ * anders setzt:
+ * - StaticLayout legt den zusätzlichen Zeilenabstand (lineSpacingExtra bzw. bei
+ *   MaterialTextView lineHeight − natürliche Zeilenhöhe) unter jede Zeile außer der letzten;
+ *   Compose verteilt ihn sonst ober- und unterhalb der Glyphen und auch unter die letzte Zeile.
+ * - includeFontPadding beginnt die erste Zeile bei top statt ascent und endet die letzte bei
+ *   bottom statt descent. In Compose greift LineHeightStyle.Trim nur ohne Font-Padding, daher
+ *   wird es hier abgeschaltet und als [TextViewTextStyle.fontPadding] (ascent − top oben,
+ *   bottom − descent unten) nachgebildet.
+ *
+ * Die Zeilenhöhe ist descent − ascent + Zusatzabstand (ganze Pixel wie Paint.FontMetricsInt),
+ * mit Alignment.Top und Trim.LastLineBottom. Die Schriftgröße wird wie bei TextView auf ganze
+ * Pixel gerundet. Ist [lineHeight] angegeben (MaterialTextView mit lineHeight aus der
+ * TextAppearance), ergibt sich der Zusatzabstand daraus, sonst aus [lineSpacingExtra]. Alle
+ * Werte werden über die aktuelle Density in sp/dp umgerechnet und skalieren mit Dichte und
+ * Schriftgröße.
+ */
+@Composable
+internal fun textViewTextStyle(
+    fontSize: TextUnit,
+    fontFamily: FontFamily = FontFamily.Default,
+    lineHeight: TextUnit = TextUnit.Unspecified,
+    lineSpacingExtra: Dp = 0.dp,
+): TextViewTextStyle {
+    val density = LocalDensity.current
+    val fontSizePx = with(density) { fontSize.toPx() }.roundToInt()
+    val lineHeightPx = if (lineHeight.isSpecified) with(density) { lineHeight.toPx() }.roundToInt() else null
+    val lineSpacingExtraPx = with(density) { lineSpacingExtra.roundToPx() }
+    return remember(fontSizePx, fontFamily, lineHeightPx, lineSpacingExtraPx, density) {
+        val metrics = Paint().apply {
+            typeface = when (fontFamily) {
+                FontFamily.Monospace -> Typeface.MONOSPACE
+                FontFamily.Serif -> Typeface.SERIF
+                FontFamily.SansSerif -> Typeface.SANS_SERIF
+                else -> Typeface.DEFAULT
+            }
+            textSize = fontSizePx.toFloat()
+        }.fontMetricsInt
+        val naturalLineHeight = metrics.descent - metrics.ascent
+        val extra = lineHeightPx?.let { it - naturalLineHeight } ?: lineSpacingExtraPx
+        with(density) {
+            TextViewTextStyle(
+                style = TextStyle(
+                    fontSize = fontSizePx.toSp(),
+                    fontFamily = fontFamily,
+                    lineHeight = (naturalLineHeight + extra - LineHeightRoundingSlackPx).toSp(),
+                    lineHeightStyle = LineHeightStyle(
+                        alignment = LineHeightStyle.Alignment.Top,
+                        trim = LineHeightStyle.Trim.LastLineBottom,
+                    ),
+                    lineBreak = TextViewLineBreak,
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                ),
+                fontPadding = PaddingValues(
+                    top = (metrics.ascent - metrics.top).toDp(),
+                    bottom = (metrics.bottom - metrics.descent).toDp(),
+                ),
+            )
+        }
+    }
+}
+
 /**
  * Der Material-Slider lässt seitlich mehr Platz (trackSidePadding 22dp für die Daumenmitte) als
  * der Compose-Slider (ca. 10dp); der Ausgleich hält Spur und Daumen an derselben Stelle. Die
@@ -89,17 +207,20 @@ private val SliderHorizontalPadding = 11.dp
 @Composable
 internal fun textViewStyle(fontSize: TextUnit): TextStyle = TextStyle(
     fontSize = pixelRoundedFontSize(fontSize),
+    lineBreak = TextViewLineBreak,
     platformStyle = PlatformTextStyle(includeFontPadding = true),
 )
 
 /**
- * Text von CheckBox und MaterialSwitch (textAppearanceBodyMedium): Größe und Laufweite von
- * bodyMedium, aber die natürliche Zeilenhöhe, da CompoundButtons die lineHeight der
- * TextAppearance nicht übernehmen (mehrzeilige Texte stehen enger als bei bodyMedium).
+ * Text von CheckBox und MaterialSwitch (textAppearanceBodyMedium): Größe von bodyMedium, aber
+ * die natürliche Zeilenhöhe, da CompoundButtons die lineHeight der TextAppearance nicht
+ * übernehmen (mehrzeilige Texte stehen enger als bei bodyMedium). Die Laufweite ist die der
+ * MDC-TextAppearance in em (bezogen auf die gerundete Pixelgröße wie bei TextView); die
+ * Compose-Typografie (0.25sp) wäre etwas enger und bräche Texte anders um.
  */
 @Composable
 private fun compoundButtonTextStyle(): TextStyle = textViewStyle(MaterialTheme.typography.bodyMedium.fontSize)
-    .copy(letterSpacing = MaterialTheme.typography.bodyMedium.letterSpacing)
+    .copy(letterSpacing = BodyMediumLetterSpacing)
 
 /**
  * Karte für eine Kategorie (vorher Widget.DoorbellIntercom.SettingsCard: Elevated Card mit
@@ -161,20 +282,22 @@ fun SettingsSectionTitle(
 }
 
 /**
- * Kurze Erklärung unter einer Überschrift (vorher ?attr/textAppearanceBodySmall mit der
- * sekundären Textfarbe).
+ * Kurze Erklärung unter einer Überschrift (vorher MaterialTextView mit
+ * ?attr/textAppearanceBodySmall und der sekundären Textfarbe): 12sp, Zeilenhöhe 16sp und
+ * Laufweite der MDC-TextAppearance, mit den Zeilenmaßen der TextView ([textViewTextStyle]).
  */
 @Composable
 fun SettingsSummary(
     text: String,
     modifier: Modifier = Modifier,
 ) {
-    val style = MaterialTheme.typography.bodySmall
+    val typography = MaterialTheme.typography.bodySmall
+    val textView = textViewTextStyle(fontSize = typography.fontSize, lineHeight = typography.lineHeight)
     Text(
         text = text,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = style.copy(fontSize = pixelRoundedFontSize(style.fontSize)),
-        modifier = modifier,
+        color = viewTextColorSecondary(),
+        style = textView.style.copy(letterSpacing = BodySmallLetterSpacing),
+        modifier = modifier.padding(textView.fontPadding),
     )
 }
 
@@ -191,7 +314,7 @@ fun SettingsText(
 ) {
     Text(
         text = text,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = viewTextColorSecondary(),
         style = textViewStyle(14.sp),
         textAlign = textAlign,
         minLines = minLines,
@@ -222,7 +345,7 @@ fun SettingsEntryRow(
             Icon(
                 painter = painterResource(R.drawable.ic_chevron_right),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = viewTextColorSecondary(),
                 modifier = Modifier
                     .padding(start = 8.dp)
                     .size(24.dp),
@@ -251,7 +374,7 @@ fun SettingsSwitchRow(
     ) {
         Text(
             text = text,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = viewTextColorPrimary(),
             style = compoundButtonTextStyle(),
             modifier = Modifier
                 .weight(1f)
@@ -284,7 +407,7 @@ fun SettingsCheckboxRow(
         }
         Text(
             text = text,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = viewTextColorPrimary(),
             style = compoundButtonTextStyle(),
             modifier = Modifier.weight(1f),
         )
@@ -326,7 +449,8 @@ fun SettingsSliderRow(
  * Umrandeter Button (vorher ?attr/materialButtonOutlinedStyle). Wie dort 40dp sichtbare Höhe in
  * einer 48dp hohen Touch-Fläche, daher ergeben gestapelte Reihen dieselben Abstände. Beschriftung
  * in colorPrimary und Rahmen in colorOutline wie beim Material-Button; die neueren
- * Compose-Vorgaben (onSurfaceVariant, outlineVariant) wären blasser.
+ * Compose-Vorgaben (onSurfaceVariant, outlineVariant) wären blasser. Mindestens 88dp breit und
+ * deaktiviert mit onSurface 38 % beschriftet, wie der Material-Button.
  */
 @Composable
 fun SettingsOutlinedButton(
@@ -339,12 +463,16 @@ fun SettingsOutlinedButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.primary),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = colors.primary,
+            disabledContentColor = colors.onSurface.copy(alpha = DisabledContentAlpha),
+        ),
         border = BorderStroke(
             width = ButtonBorderWidth,
             color = if (enabled) colors.outline else colors.onSurface.copy(alpha = DisabledBorderAlpha),
         ),
-        modifier = modifier,
+        // Nach den Außenabständen des Aufrufers, damit die Mindestbreite für den Button selbst gilt.
+        modifier = modifier.defaultMinSize(minWidth = ButtonMinWidth),
     ) {
         val style = MaterialTheme.typography.labelLarge
         Text(text = text, style = style.copy(fontSize = pixelRoundedFontSize(style.fontSize)))

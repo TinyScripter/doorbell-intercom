@@ -1,12 +1,18 @@
 package de.kleinabersmart.doorbellintercom.ui.theme
 
+import androidx.annotation.AttrRes
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.PlatformTextStyle
@@ -106,3 +112,43 @@ fun onVideoTextStyle(fontSize: TextUnit, includeFontPadding: Boolean = false): T
 @Composable
 fun pixelRoundedFontSize(fontSize: TextUnit): TextUnit =
     with(LocalDensity.current) { fontSize.toPx().roundToInt().toSp() }
+
+/**
+ * Primäre Textfarbe der bisherigen Views (android:textColorPrimary des Activity-Themes).
+ *
+ * Theme.DoorbellIntercom hat textColorPrimary/textColorSecondary nie überschrieben; EditTexts,
+ * Schalter- und Checkbox-Texte nutzten daher die festen Vorgaben der Material-3-Bibliothek
+ * (hell #1D1B20, dunkel entsprechend) und nicht md_theme_onSurface aus colors.xml. Damit die
+ * Compose-Bildschirme genauso aussehen, wird das Attribut aus dem Theme der Activity gelesen.
+ * Fehlt es (z. B. in einer fremden Umgebung), gilt colorScheme.onSurface.
+ */
+@Composable
+fun viewTextColorPrimary(): Color =
+    themeTextColor(android.R.attr.textColorPrimary, MaterialTheme.colorScheme.onSurface)
+
+/**
+ * Sekundäre Textfarbe der bisherigen Views (android:textColorSecondary des Activity-Themes):
+ * Kurzbeschreibungen, einfache TextViews, der mit colorControlNormal getönte Pfeil und der
+ * Unterstrich der EditTexts. Wie bei [viewTextColorPrimary] die Material-3-Vorgabe der
+ * Bibliothek (hell #49454F), nicht md_theme_onSurfaceVariant; ohne Attribut
+ * colorScheme.onSurfaceVariant.
+ */
+@Composable
+fun viewTextColorSecondary(): Color =
+    themeTextColor(android.R.attr.textColorSecondary, MaterialTheme.colorScheme.onSurfaceVariant)
+
+/** Standardfarbe der (Zustands-)Farbe [attr] im aktuellen Theme, sonst [fallback]. */
+@Composable
+private fun themeTextColor(@AttrRes attr: Int, fallback: Color): Color {
+    val context = LocalContext.current
+    // Die Konfiguration als Schlüssel: bei Wechsel Hell/Dunkel ohne Neustart neu auflösen.
+    val configuration = LocalConfiguration.current
+    return remember(context, configuration, attr, fallback) {
+        val attributes = context.obtainStyledAttributes(intArrayOf(attr))
+        try {
+            Color(attributes.getColor(0, fallback.toArgb()))
+        } finally {
+            attributes.recycle()
+        }
+    }
+}
