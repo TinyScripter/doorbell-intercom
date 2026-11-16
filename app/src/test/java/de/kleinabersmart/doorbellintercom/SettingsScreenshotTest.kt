@@ -14,20 +14,43 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.core.app.ApplicationProvider
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
+import de.kleinabersmart.doorbellintercom.ui.settings.SettingsEntry
+import de.kleinabersmart.doorbellintercom.ui.settings.SettingsTestTags
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.BeforeClass
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -38,6 +61,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.android.controller.ActivityController
 import org.robolectric.shadows.ShadowDialog
 import org.robolectric.shadows.ShadowNotificationManager
 import org.robolectric.shadows.ShadowPowerManager
@@ -64,6 +88,12 @@ import java.io.IOException
  * main looper is idled and the ScrollView scrollbar is disabled (see [capture]).
  * The main settings page reads SystemCheck; its state is forced with [setSystemCheck].
  *
+ * Pages already migrated to Compose (SettingsActivity) keep their test methods, scenarios and
+ * capture names; the former View checks are expressed as Compose semantics (test tags from
+ * SettingsTestTags), the full-content check asserts that the Compose scroll range is 0, and the
+ * QR dialog is the window of the Compose AlertDialog. Before the tall relaunch the first Activity
+ * is closed so that only one Compose hierarchy is attached.
+ *
  * Device: Pixel 9 class phone (1080 x 2424 px at 420 dpi = 411 x 923 dp), light mode, values/ strings.
  * AppConfig is seeded with fixed values ([seedConfig]) before each launch. Screenshots go to
  * app/build/outputs/screenshots/SettingsScreenshotTest/.
@@ -80,13 +110,28 @@ import java.io.IOException
 )
 class SettingsScreenshotTest {
 
+    @get:Rule
+    val composeTestRule = createEmptyComposeRule()
+
     private val app: Application get() = ApplicationProvider.getApplicationContext()
+
+    /** Activities of the running test, closed before the tall relaunch ([closeActivities]). */
+    private val controllers = mutableListOf<ActivityController<out Activity>>()
 
     @Before
     fun setUp() {
         seedConfig()
         // ConnectionsSettingsActivity would otherwise request it on create (auto VPN is on).
         shadowOf(app).grantPermissions(WireGuardTunnel.PERMISSION_CONTROL_TUNNELS)
+    }
+
+    /**
+     * Leaves no Activity (and no Compose dialog) behind: their Compose hierarchies would stay
+     * registered with the compose rule and block the idle sync of the next test.
+     */
+    @After
+    fun tearDown() {
+        closeActivities()
     }
 
     /** Deterministic settings for all screens (already on the slider steps, so nothing is normalized). */
@@ -169,12 +214,14 @@ class SettingsScreenshotTest {
     fun settingsMain() {
         setSystemCheck(ok = true)
         captureScreen(SettingsActivity::class.java, "settingsMain") { activity ->
-            assertTitle(activity, R.string.toolbar_settings_title)
-            assertEquals(View.GONE, activity.findViewById<View>(R.id.checkTitle).visibility)
-            assertEquals(0, activity.findViewById<ViewGroup>(R.id.checkList).childCount)
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.toolbar_settings_title)
+            // No setup check: neither the title nor any hint is composed (formerly GONE / empty checkList).
+            composeTestRule.onNodeWithTag(SettingsTestTags.CHECK_TITLE).assertDoesNotExist()
+            composeTestRule.onAllNodes(hasTestTagPrefix(CHECK_ISSUE_TAG_PREFIX)).assertCountEquals(0)
             assertEntries(activity)
             assertBackupCard(activity)
-            assertEquals("", activity.findViewById<TextView>(R.id.statusText).text.toString())
+            composeTestRule.onNodeWithTag(SettingsTestTags.STATUS_TEXT).assertTextEquals("")
         }
     }
 
@@ -182,28 +229,26 @@ class SettingsScreenshotTest {
     fun settingsMainSystemCheck() {
         setSystemCheck(ok = false)
         captureScreen(SettingsActivity::class.java, "settingsMainSystemCheck") { activity ->
-            assertTitle(activity, R.string.toolbar_settings_title)
-            val checkTitle = activity.findViewById<TextView>(R.id.checkTitle)
-            assertTrue(checkTitle.isShown)
-            assertEquals(activity.getString(R.string.check_title), checkTitle.text.toString())
-            val issues = activity.findViewById<ViewGroup>(R.id.checkList)
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.toolbar_settings_title)
+            composeTestRule.onNodeWithTag(SettingsTestTags.CHECK_TITLE).assertIsDisplayed()
+                .assertTextEquals(activity.getString(R.string.check_title))
             val expected = listOf(
                 R.string.check_notifications_off to R.string.check_notifications_off_summary,
                 R.string.check_full_screen_off to R.string.check_full_screen_off_summary,
                 R.string.check_battery_optimized to R.string.check_battery_optimized_summary,
             )
-            assertEquals(expected.size, issues.childCount)
-            val entryTitleColor = activity.findViewById<ViewGroup>(R.id.entryList).getChildAt(0)
-                .findViewById<TextView>(R.id.entryTitle).currentTextColor
+            composeTestRule.onAllNodes(hasTestTagPrefix(CHECK_ISSUE_TAG_PREFIX)).assertCountEquals(expected.size)
+            val checkTitleColor = textColor(SettingsTestTags.CHECK_TITLE, activity.getString(R.string.check_title))
+            val entryTitleColor = textColor(SettingsEntry.Camera.testTag, activity.getString(R.string.section_camera))
             expected.forEachIndexed { index, (title, summary) ->
-                val row = issues.getChildAt(index)
-                assertTrue(row.isShown && row.isClickable)
-                val titleView = row.findViewById<TextView>(R.id.entryTitle)
-                assertEquals(activity.getString(title), titleView.text.toString())
-                assertEquals(activity.getString(summary), row.findViewById<TextView>(R.id.entrySummary).text.toString())
+                val tag = SettingsTestTags.checkIssue(index)
+                composeTestRule.onNodeWithTag(tag).assertIsDisplayed().assertHasClickAction()
+                    .assertTextEquals(activity.getString(title), activity.getString(summary))
                 // Error color like the "Setup check" title, not the primary color of the entries.
-                assertEquals(checkTitle.currentTextColor, titleView.currentTextColor)
-                assertNotEquals(entryTitleColor, titleView.currentTextColor)
+                val issueTitleColor = textColor(tag, activity.getString(title))
+                assertEquals(checkTitleColor, issueTitleColor)
+                assertNotEquals(entryTitleColor, issueTitleColor)
             }
             assertEntries(activity)
             assertBackupCard(activity)
@@ -214,29 +259,26 @@ class SettingsScreenshotTest {
     fun settingsMainQrDialog() {
         setSystemCheck(ok = true)
         val activity = launch(SettingsActivity::class.java)
+        assertComposeHosted(activity)
         capture(activity, "settingsMainQrDialog_01_initial")
 
-        assertTrue(activity.findViewById<Button>(R.id.btnShowQr).performClick())
+        composeTestRule.onNodeWithTag(SettingsTestTags.BTN_SHOW_QR).assertHasClickAction().performClick()
         settle()
 
         val dialog: Dialog = ShadowDialog.getLatestDialog()
         assertNotNull("no QR dialog", dialog)
         assertTrue(dialog.isShowing)
-        assertEquals(
-            activity.getString(R.string.title_qr_dialog),
-            dialog.findViewById<TextView>(androidx.appcompat.R.id.alertTitle).text.toString(),
-        )
-        assertEquals(
-            activity.getString(R.string.message_qr_dialog),
-            dialog.findViewById<TextView>(android.R.id.message).text.toString(),
-        )
-        val qrImage = findViews(dialog.window!!.decorView, ImageView::class.java).single { it.drawable != null }
-        assertTrue("QR image not laid out", qrImage.isShown && qrImage.width > 0 && qrImage.height > 0)
-        assertEquals(activity.getString(R.string.btn_close), dialog.findViewById<Button>(android.R.id.button1).text.toString())
-        assertEquals("", activity.findViewById<TextView>(R.id.statusText).text.toString())
+        composeTestRule.onNodeWithTag(SettingsTestTags.QR_DIALOG).assertIsDisplayed()
+        composeTestRule.onNode(inQrDialog(activity.getString(R.string.title_qr_dialog))).assertIsDisplayed()
+        composeTestRule.onNode(inQrDialog(activity.getString(R.string.message_qr_dialog))).assertIsDisplayed()
+        val qrImage = composeTestRule.onNodeWithTag(SettingsTestTags.QR_IMAGE).assertIsDisplayed()
+        val qrBounds = qrImage.getUnclippedBoundsInRoot()
+        assertTrue("QR image not laid out", qrBounds.right > qrBounds.left && qrBounds.bottom > qrBounds.top)
+        composeTestRule.onNodeWithTag(SettingsTestTags.BTN_QR_CLOSE).assertTextEquals(activity.getString(R.string.btn_close))
+        composeTestRule.onNodeWithTag(SettingsTestTags.STATUS_TEXT).assertTextEquals("")
 
-        // The dialog window alone (its own decor view), the same way for the Compose dialog.
-        captureView(dialog.window!!.decorView, "settingsMainQrDialog_02_dialogShown")
+        // The dialog window alone (its own decor view), the same way as for the former View dialog.
+        captureView(checkNotNull(dialog.window).decorView, "settingsMainQrDialog_02_dialogShown")
     }
 
     // ---- Section pages -------------------------------------------------------------------------
@@ -364,37 +406,74 @@ class SettingsScreenshotTest {
         assertNotNull(findTextView(activity, activity.getString(titleRes)))
     }
 
-    /** The six navigation entries of the main settings page, in order. */
+    /** The Compose path really ran: the content view is the ComposeView of setContent. */
+    private fun assertComposeHosted(activity: Activity) {
+        assertTrue("no ComposeView attached", isComposeHosted(activity))
+    }
+
+    private fun isComposeHosted(activity: Activity): Boolean {
+        val content = activity.findViewById<ViewGroup>(android.R.id.content)
+        return content.childCount == 1 && content.getChildAt(0) is ComposeView && content.getChildAt(0).isShown
+    }
+
+    /** Window title (announced by TalkBack) and the top bar with title and up button. */
+    private fun assertComposeTitle(activity: Activity, titleRes: Int) {
+        val title = activity.getString(titleRes)
+        assertEquals(title, activity.title.toString())
+        composeTestRule.onNodeWithTag(SettingsTestTags.TOOLBAR).assertIsDisplayed()
+        composeTestRule.onNode(hasText(title) and hasAnyAncestor(hasTestTag(SettingsTestTags.TOOLBAR))).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(SettingsTestTags.UP).assertIsDisplayed().assertHasClickAction()
+            .assertContentDescriptionEquals(activity.getString(R.string.nav_up))
+    }
+
+    /** The six navigation entries of the main settings page, in order (top to bottom). */
     private fun assertEntries(activity: Activity) {
-        val entries = activity.findViewById<ViewGroup>(R.id.entryList)
         val expected = listOf(
-            R.string.section_camera to R.string.section_camera_summary,
-            R.string.section_ringing to R.string.section_ringing_summary,
-            R.string.section_push_settings to R.string.section_push_settings_summary,
-            R.string.section_connections to R.string.section_connections_summary,
-            R.string.section_ring_log to R.string.section_ring_log_summary,
-            R.string.section_about to R.string.section_about_summary,
+            Triple(SettingsEntry.Camera.testTag, R.string.section_camera, R.string.section_camera_summary),
+            Triple(SettingsEntry.Ringing.testTag, R.string.section_ringing, R.string.section_ringing_summary),
+            Triple(SettingsEntry.Push.testTag, R.string.section_push_settings, R.string.section_push_settings_summary),
+            Triple(SettingsEntry.Connections.testTag, R.string.section_connections, R.string.section_connections_summary),
+            Triple(SettingsEntry.RingLog.testTag, R.string.section_ring_log, R.string.section_ring_log_summary),
+            Triple(SettingsEntry.About.testTag, R.string.section_about, R.string.section_about_summary),
         )
-        assertEquals(expected.size, entries.childCount)
-        expected.forEachIndexed { index, (title, summary) ->
-            val row = entries.getChildAt(index)
-            assertTrue(row.isClickable)
-            assertEquals(activity.getString(title), row.findViewById<TextView>(R.id.entryTitle).text.toString())
-            assertEquals(activity.getString(summary), row.findViewById<TextView>(R.id.entrySummary).text.toString())
+        composeTestRule.onAllNodes(hasTestTagPrefix(ENTRY_TAG_PREFIX)).assertCountEquals(expected.size)
+        val tops = expected.map { (tag, title, summary) ->
+            val row = composeTestRule.onNodeWithTag(tag).assertHasClickAction()
+                .assertTextEquals(activity.getString(title), activity.getString(summary))
+            row.getUnclippedBoundsInRoot().top
         }
+        assertEquals("entries out of order", tops.sorted(), tops)
     }
 
     private fun assertBackupCard(activity: Activity) {
-        for ((id, text) in listOf(
-            R.id.btnExportSettings to R.string.btn_export_settings,
-            R.id.btnImportSettings to R.string.btn_import_settings,
-            R.id.btnShowQr to R.string.btn_show_qr,
-            R.id.btnScanQr to R.string.btn_scan_qr,
+        for ((tag, text) in listOf(
+            SettingsTestTags.BTN_EXPORT to R.string.btn_export_settings,
+            SettingsTestTags.BTN_IMPORT to R.string.btn_import_settings,
+            SettingsTestTags.BTN_SHOW_QR to R.string.btn_show_qr,
+            SettingsTestTags.BTN_SCAN_QR to R.string.btn_scan_qr,
         )) {
-            val button = activity.findViewById<Button>(id)
-            assertTrue(button.isEnabled)
-            assertEquals(activity.getString(text), button.text.toString())
+            composeTestRule.onNodeWithTag(tag).assertIsEnabled().assertTextEquals(activity.getString(text))
         }
+    }
+
+    private fun hasTestTagPrefix(prefix: String) = SemanticsMatcher("test tag starts with $prefix") {
+        it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith(prefix) == true
+    }
+
+    private fun inQrDialog(text: String) = hasText(text) and hasAnyAncestor(hasTestTag(SettingsTestTags.QR_DIALOG))
+
+    /**
+     * Color the text [text] is drawn with, below the node tagged [tag] (or tagged itself): from the
+     * text layout, which is what TextView.currentTextColor was before.
+     */
+    private fun textColor(tag: String, text: String): ComposeColor {
+        val node = composeTestRule.onNode(
+            hasText(text) and (hasTestTag(tag) or hasAnyAncestor(hasTestTag(tag))),
+            useUnmergedTree = true,
+        ).fetchSemanticsNode()
+        val layouts = mutableListOf<TextLayoutResult>()
+        checkNotNull(node.config[SemanticsActions.GetTextLayoutResult].action).invoke(layouts)
+        return layouts.single().layoutInput.style.color
     }
 
     private fun assertField(activity: Activity, id: Int, expected: String) {
@@ -422,7 +501,9 @@ class SettingsScreenshotTest {
     // ---- Launch & capture ----------------------------------------------------------------------
 
     private fun <T : Activity> launch(type: Class<T>): T {
-        val activity = Robolectric.buildActivity(type).setup().get()
+        val controller = Robolectric.buildActivity(type).setup()
+        controllers += controller
+        val activity = controller.get()
         settle()
         // Touch mode like a phone: no EditText gets initial focus, so no cursor is drawn.
         assertTrue(activity.window.decorView.isInTouchMode)
@@ -438,20 +519,48 @@ class SettingsScreenshotTest {
         val activity = launch(type)
         checks(activity)
         capture(activity, "${method}_01_initial")
+        // Only one window with content at a time (otherwise every Compose tag would match twice).
+        closeActivities()
 
         RuntimeEnvironment.setQualifiers(FULL_HEIGHT_QUALIFIER)
         val tall = launch(type)
         checks(tall)
-        val scroll = tall.findViewById<View>(R.id.settingsContent).parent as ScrollView
-        val content = scroll.getChildAt(0)
-        val density = tall.resources.displayMetrics.density
-        println("CONTENT_HEIGHT $method: ${content.height / density} dp in viewport ${scroll.height / density} dp")
-        assertTrue("content of $method does not fit into the tall window", content.height <= scroll.height)
-        assertFalse(scroll.canScrollVertically(1))
+        assertFullContentFits(tall, method)
         capture(tall, "${method}_02_fullContent")
     }
 
+    /** Nothing left to scroll in the tall window: ScrollView (XML pages) or verticalScroll (Compose pages). */
+    private fun assertFullContentFits(activity: Activity, method: String) {
+        val density = activity.resources.displayMetrics.density
+        if (isComposeHosted(activity)) {
+            val content = composeTestRule.onNodeWithTag(SettingsTestTags.CONTENT).fetchSemanticsNode()
+            val range = content.config[SemanticsProperties.VerticalScrollAxisRange]
+            println("CONTENT_SCROLL $method: max ${range.maxValue() / density} dp in viewport ${content.size.height / density} dp")
+            assertEquals("content of $method does not fit into the tall window", 0f, range.maxValue(), 0f)
+            assertEquals(0f, range.value(), 0f)
+            return
+        }
+        val scroll = activity.findViewById<View>(R.id.settingsContent).parent as ScrollView
+        val content = scroll.getChildAt(0)
+        println("CONTENT_HEIGHT $method: ${content.height / density} dp in viewport ${scroll.height / density} dp")
+        assertTrue("content of $method does not fit into the tall window", content.height <= scroll.height)
+        assertFalse(scroll.canScrollVertically(1))
+    }
+
+    /** Pauses, stops and destroys the Activities launched so far (like leaving the page). */
+    private fun closeActivities() {
+        controllers.forEach { it.pause().stop().destroy() }
+        controllers.clear()
+        settle()
+    }
+
+    /**
+     * Idles the main looper and, if a Compose page is open, waits for Compose to be idle. Without
+     * any Compose hierarchy (XML pages, after [closeActivities]) waitForIdle would first wait 2 s
+     * for one to appear, hence only with a Compose page.
+     */
     private fun settle() {
+        if (controllers.any { isComposeHosted(it.get()) }) composeTestRule.waitForIdle()
         shadowOf(Looper.getMainLooper()).idle()
     }
 
@@ -501,6 +610,10 @@ class SettingsScreenshotTest {
         // Full string, not "+h1600dp": the relative form re-derives the width from the rounded
         // 410 dp of the running config and renders 1076 instead of 1078 px.
         private const val FULL_HEIGHT_QUALIFIER = "en-rUS-w411dp-h1600dp-port-notnight-420dpi"
+
+        /** Tags of the navigation entries (SettingsEntry.testTag) and setup-check hints (SettingsTestTags.checkIssue). */
+        private const val ENTRY_TAG_PREFIX = "entry_"
+        private const val CHECK_ISSUE_TAG_PREFIX = "check_issue_"
 
         /** Newest first, as RingLogActivity shows them (format of CallController). */
         private val RING_LOG_ENTRIES = listOf(

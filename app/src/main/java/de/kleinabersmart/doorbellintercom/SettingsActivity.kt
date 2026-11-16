@@ -1,32 +1,32 @@
 package de.kleinabersmart.doorbellintercom
 
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Color
 import android.net.Uri
 import android.util.Log
-import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
-import com.google.android.material.color.MaterialColors
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
-import de.kleinabersmart.doorbellintercom.databinding.ItemSettingsEntryBinding
-import de.kleinabersmart.doorbellintercom.databinding.SettingsMainBinding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.kleinabersmart.doorbellintercom.ui.settings.SettingsEntry
+import de.kleinabersmart.doorbellintercom.ui.settings.SettingsScreen
+import de.kleinabersmart.doorbellintercom.ui.settings.SettingsUiState
+import de.kleinabersmart.doorbellintercom.ui.settings.SystemCheckIssueUi
+import de.kleinabersmart.doorbellintercom.ui.settings.createQrBitmap
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Hauptseite der Einstellungen: Liste der Unterseiten (Kamera, Klingel, Push, weitere
  * Verbindungen, Klingel-Protokoll, Über / Lizenzen) und die Sicherung. Gespeichert wird in den Unterseiten
  * beim Verlassen; kehrt eine mit Änderungen zurück, erscheint hier ein Toast.
+ *
+ * Die Oberfläche ist Compose (SettingsScreen); die Activity schreibt nur in [uiState].
  */
 class SettingsActivity : SettingsBaseActivity() {
 
-    private lateinit var binding: SettingsMainBinding
+    private val uiState = MutableStateFlow(SettingsUiState())
 
     override val titleRes = R.string.toolbar_settings_title
 
@@ -51,23 +51,45 @@ class SettingsActivity : SettingsBaseActivity() {
     private val qrScanner = QrScanner(
         activity = this,
         onResult = ::confirmQrImport,
-        onError = { binding.statusText.text = getString(R.string.status_qr_failed) }
+        onError = { showStatus(R.string.status_qr_failed) }
     )
 
-    override fun onCreateContent(container: ViewGroup) {
-        binding = SettingsMainBinding.inflate(layoutInflater, container)
+    override fun createContent(): @Composable () -> Unit = {
+        val state by uiState.collectAsStateWithLifecycle()
+        SettingsScreen(
+            state = state,
+            onNavigateUp = ::finish,
+            onEntryClick = ::openEntry,
+            onIssueClick = ::openFix,
+            onExportClick = { exportLauncher.launch(EXPORT_FILE_NAME) },
+            onImportClick = { importLauncher.launch(IMPORT_MIME_TYPES) },
+            onShowQrClick = ::showQrCode,
+            onScanQrClick = { qrScanner.scan() },
+            onQrDialogDismiss = { uiState.update { it.copy(qrCode = null) } },
+            onQrImportConfirm = ::confirmPendingQrImport,
+            onQrImportDismiss = { uiState.update { it.copy(pendingQrImport = null) } },
+        )
+    }
 
-        addEntry(R.string.section_camera, R.string.section_camera_summary, CameraSettingsActivity::class.java)
-        addEntry(R.string.section_ringing, R.string.section_ringing_summary, RingingSettingsActivity::class.java)
-        addEntry(R.string.section_push_settings, R.string.section_push_settings_summary, PushSettingsActivity::class.java)
-        addEntry(R.string.section_connections, R.string.section_connections_summary, ConnectionsSettingsActivity::class.java)
-        addEntry(R.string.section_ring_log, R.string.section_ring_log_summary, RingLogActivity::class.java)
-        addEntry(R.string.section_about, R.string.section_about_summary, AboutActivity::class.java)
+    private fun openEntry(entry: SettingsEntry) {
+        val target = when (entry) {
+            SettingsEntry.Camera -> CameraSettingsActivity::class.java
+            SettingsEntry.Ringing -> RingingSettingsActivity::class.java
+            SettingsEntry.Push -> PushSettingsActivity::class.java
+            SettingsEntry.Connections -> ConnectionsSettingsActivity::class.java
+            SettingsEntry.RingLog -> RingLogActivity::class.java
+            SettingsEntry.About -> AboutActivity::class.java
+        }
+        sectionLauncher.launch(Intent(this, target))
+    }
 
-        binding.btnExportSettings.setOnClickListener { exportLauncher.launch(EXPORT_FILE_NAME) }
-        binding.btnImportSettings.setOnClickListener { importLauncher.launch(IMPORT_MIME_TYPES) }
-        binding.btnShowQr.setOnClickListener { showQrCode() }
-        binding.btnScanQr.setOnClickListener { qrScanner.scan() }
+    /**
+     * Die Aktion hängt nur von der Art des Befunds ab (eindeutiger Titel), daher wird sie beim
+     * Tippen frisch aus SystemCheck geholt statt im UI-Zustand gehalten. Ist der Befund inzwischen
+     * behoben, passiert nichts; die Liste ist beim nächsten onResume aktuell.
+     */
+    private fun openFix(issue: SystemCheckIssueUi) {
+        SystemCheck.issues(this).firstOrNull { it.title == issue.title }?.let { SystemCheck.openFix(this, it) }
     }
 
     private fun showQrCode() {
@@ -75,48 +97,20 @@ class SettingsActivity : SettingsBaseActivity() {
             createQrBitmap(config.exportToQrPayload())
         } catch (e: Exception) {
             Log.w(TAG, "QR-Code konnte nicht erzeugt werden", e)
-            binding.statusText.text = getString(R.string.status_qr_failed)
+            showStatus(R.string.status_qr_failed)
             return
         }
-        val padding = (16 * resources.displayMetrics.density).toInt()
-        val image = ImageView(this).apply {
-            setImageBitmap(bitmap)
-            setPadding(padding, padding, padding, padding)
-            adjustViewBounds = true
-        }
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.title_qr_dialog)
-            .setMessage(R.string.message_qr_dialog)
-            .setView(image)
-            .setPositiveButton(R.string.btn_close, null)
-            .show()
-    }
-
-    /** Schwarz auf weiß mit Ruhezone, unabhängig vom App-Theme – sonst scannt er schlecht. */
-    private fun createQrBitmap(content: String): Bitmap {
-        val hints = mapOf(
-            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L,
-            EncodeHintType.MARGIN to 2,
-            EncodeHintType.CHARACTER_SET to "UTF-8"
-        )
-        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, 0, 0, hints)
-        val pixels = IntArray(matrix.width * matrix.height)
-        for (y in 0 until matrix.height) {
-            for (x in 0 until matrix.width) {
-                pixels[y * matrix.width + x] = if (matrix[x, y]) Color.BLACK else Color.WHITE
-            }
-        }
-        // Ein Pixel pro Modul; ImageView skaliert ohne Weichzeichnen hoch.
-        return Bitmap.createBitmap(pixels, matrix.width, matrix.height, Bitmap.Config.ARGB_8888)
+        uiState.update { it.copy(qrCode = bitmap.asImageBitmap()) }
     }
 
     private fun confirmQrImport(payload: String) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.title_qr_import_confirm)
-            .setMessage(R.string.message_qr_import_confirm)
-            .setPositiveButton(R.string.btn_import_confirm) { _, _ -> applyImportedQr(payload) }
-            .setNegativeButton(R.string.btn_cancel, null)
-            .show()
+        uiState.update { it.copy(pendingQrImport = payload) }
+    }
+
+    private fun confirmPendingQrImport() {
+        val payload = uiState.value.pendingQrImport ?: return
+        uiState.update { it.copy(pendingQrImport = null) }
+        applyImportedQr(payload)
     }
 
     private fun applyImportedQr(payload: String) {
@@ -124,7 +118,7 @@ class SettingsActivity : SettingsBaseActivity() {
             config.importFromQrPayload(payload)
         } catch (e: Exception) {
             Log.w(TAG, "Einstellungen konnten nicht aus dem QR-Code importiert werden", e)
-            binding.statusText.text = getString(R.string.status_settings_import_failed)
+            showStatus(R.string.status_settings_import_failed)
             return
         }
         onSettingsImported()
@@ -137,26 +131,12 @@ class SettingsActivity : SettingsBaseActivity() {
     }
 
     private fun showSystemCheck() {
-        val issues = SystemCheck.issues(this)
-        binding.checkTitle.visibility = if (issues.isEmpty()) View.GONE else View.VISIBLE
-        binding.checkList.removeAllViews()
-        val errorColor = MaterialColors.getColor(binding.checkTitle, androidx.appcompat.R.attr.colorError)
-        for (issue in issues) {
-            val entry = ItemSettingsEntryBinding.inflate(layoutInflater, binding.checkList, false)
-            entry.entryTitle.setText(issue.title)
-            entry.entryTitle.setTextColor(errorColor)
-            entry.entrySummary.setText(issue.summary)
-            entry.root.setOnClickListener { SystemCheck.openFix(this, issue) }
-            binding.checkList.addView(entry.root)
-        }
+        val issues = SystemCheck.issues(this).map { SystemCheckIssueUi(it.title, it.summary) }
+        uiState.update { it.copy(issues = issues) }
     }
 
-    private fun addEntry(@StringRes title: Int, @StringRes summary: Int, target: Class<*>) {
-        val entry = ItemSettingsEntryBinding.inflate(layoutInflater, binding.entryList, false)
-        entry.entryTitle.setText(title)
-        entry.entrySummary.setText(summary)
-        entry.root.setOnClickListener { sectionLauncher.launch(Intent(this, target)) }
-        binding.entryList.addView(entry.root)
+    private fun showStatus(@StringRes message: Int) {
+        uiState.update { it.copy(statusMessage = message) }
     }
 
     private fun exportSettings(uri: Uri) {
@@ -173,9 +153,7 @@ class SettingsActivity : SettingsBaseActivity() {
                 false
             }
             runOnUiThread {
-                binding.statusText.text = getString(
-                    if (success) R.string.status_settings_exported else R.string.status_settings_export_failed
-                )
+                showStatus(if (success) R.string.status_settings_exported else R.string.status_settings_export_failed)
             }
         }.start()
     }
@@ -199,7 +177,7 @@ class SettingsActivity : SettingsBaseActivity() {
             config.importFromJson(json ?: throw IllegalArgumentException("Datei nicht lesbar"))
         } catch (e: Exception) {
             Log.w(TAG, "Einstellungen konnten nicht importiert werden", e)
-            binding.statusText.text = getString(R.string.status_settings_import_failed)
+            showStatus(R.string.status_settings_import_failed)
             return
         }
         onSettingsImported()
@@ -208,7 +186,7 @@ class SettingsActivity : SettingsBaseActivity() {
     private fun onSettingsImported() {
         DoorbellForegroundService.startOrStop(this)
         PushRegistrar.start(this)
-        binding.statusText.text = getString(R.string.status_settings_imported)
+        showStatus(R.string.status_settings_imported)
     }
 
     private companion object {

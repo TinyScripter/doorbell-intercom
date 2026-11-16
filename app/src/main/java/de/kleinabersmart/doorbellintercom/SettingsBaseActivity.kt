@@ -5,14 +5,18 @@ import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.Composable
 import de.kleinabersmart.doorbellintercom.databinding.ActivitySettingsBinding
+import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
 
 /**
- * Gemeinsames Gerüst der Einstellungs-Hauptseite und aller Unterseiten: Toolbar mit
- * Zurück-Pfeil, scrollbarer Inhaltsbereich und Toast-Anzeige. Der eigentliche Inhalt
- * kommt aus einem eigenen Layout (settings_*.xml), das die Unterklasse einhängt.
+ * Gemeinsame Basis der Einstellungs-Hauptseite und aller Unterseiten: Titel, [config] und
+ * Toast-Anzeige. Die Oberfläche kommt aus Compose ([createContent], Gerüst mit Leiste und
+ * Scrollbereich in SettingsScaffold); Seiten, die noch nicht umgestellt sind, hängen ihr
+ * XML-Layout (settings_*.xml) über [onCreateContent] in activity_settings.xml ein.
  */
 abstract class SettingsBaseActivity : AppCompatActivity() {
 
@@ -23,11 +27,29 @@ abstract class SettingsBaseActivity : AppCompatActivity() {
     @get:StringRes
     protected abstract val titleRes: Int
 
-    /** Hängt den Inhalt in [container] ein und füllt die Felder. */
-    protected abstract fun onCreateContent(container: ViewGroup)
+    /**
+     * Legt den Zustand der Seite an und liefert ihren Inhalt. Läuft in onCreate, nachdem [config]
+     * gesetzt ist, und damit vor dem ersten Speichern in SettingsSectionActivity: der Zustand muss
+     * hier schon vollständig (aus [config]) vorliegen, nicht erst beim ersten Zeichnen.
+     * null = die Seite nutzt noch ihr XML-Layout ([onCreateContent]).
+     */
+    protected open fun createContent(): (@Composable () -> Unit)? = null
+
+    /** XML-Weg bis zur Umstellung aller Seiten: hängt den Inhalt in [container] ein und füllt die Felder. */
+    protected open fun onCreateContent(container: ViewGroup) = Unit
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Fenstertitel weiterhin setzen: TalkBack sagt ihn beim Öffnen der Seite an.
+        setTitle(titleRes)
+        config = AppConfig(this)
+
+        val content = createContent()
+        if (content != null) {
+            setContent { DoorbellTheme { content() } }
+            return
+        }
+
         val binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
@@ -37,7 +59,6 @@ abstract class SettingsBaseActivity : AppCompatActivity() {
         binding.topBar.applyTopSystemInset()
         binding.settingsContent.applyBottomSystemAndImeInset()
 
-        config = AppConfig(this)
         onCreateContent(binding.settingsContent)
     }
 
