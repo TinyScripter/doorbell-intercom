@@ -7,13 +7,34 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.core.view.isVisible
 import de.kleinabersmart.doorbellintercom.databinding.ActivityIncomingCallBinding
+import de.kleinabersmart.doorbellintercom.ui.components.SlideConfirmRequest
+import de.kleinabersmart.doorbellintercom.ui.components.VideoLayer
+import de.kleinabersmart.doorbellintercom.ui.components.inflateLivePlayerView
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.DoorAction
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.IncomingCallPhase
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.IncomingCallScreen
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.IncomingCallTestTags
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.IncomingCallUiState
+import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -32,13 +53,21 @@ import java.io.IOException
  * only inflates the layout with the same theme and applies the same view setup as the
  * activity (insets, visibility per call phase). The PlayerView has no player and renders black.
  *
+ * The `<method>_compose` tests render the migrated IncomingCallScreen the same way: [ComposeHostActivity]
+ * hosts it like IncomingCallActivity (same theme, DoorbellTheme, PlayerView without player via VideoLayer)
+ * and the capture draws the decor view identically.
+ *
  * Device: Pixel 9 class phone (1080 x 2424 px at 420 dpi = 411 x 923 dp), light mode, values/ strings.
- * Screenshots go to app/build/outputs/screenshots/IncomingCallScreenshotTest/.
+ * Screenshots go to app/build/outputs/screenshots/IncomingCallScreenshotTest/ (View) and its
+ * compose/ subfolder (Compose, same file names for a 1:1 comparison).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "en-rUS-w411dp-h923dp-port-notnight-420dpi")
 class IncomingCallScreenshotTest {
+
+    @get:Rule
+    val composeTestRule = createEmptyComposeRule()
 
     /** Minimal host with the theme of IncomingCallActivity, without its services. */
     class HostActivity : AppCompatActivity() {
@@ -70,8 +99,63 @@ class IncomingCallScreenshotTest {
         }
     }
 
+    /** Compose host with the theme of IncomingCallActivity and its setContent, without its services. */
+    class ComposeHostActivity : AppCompatActivity() {
+        var state by mutableStateOf(IncomingCallUiState())
+
+        override fun onCreate(savedInstanceState: Bundle?) {
+            setTheme(R.style.Theme_DoorbellIntercom_FullScreen)
+            super.onCreate(savedInstanceState)
+            // As IncomingCallActivity: the PlayerView (no player, renders black) is the bottom layer.
+            val playerView = inflateLivePlayerView(this)
+            setContent {
+                DoorbellTheme {
+                    IncomingCallScreen(
+                        state = state,
+                        onAccept = {},
+                        onDecline = {},
+                        onDoorOpenAndHangUpClick = {},
+                        onTalk = {},
+                        onDoorOpenClick = {},
+                        onHangUp = {},
+                        onDoorConfirmed = {},
+                        onDoorDismiss = {},
+                        video = { VideoLayer(playerView) },
+                    )
+                }
+            }
+        }
+
+        /** Like IncomingCallActivity.showRinging(). */
+        fun showRinging() {
+            state = state.copy(
+                phase = IncomingCallPhase.Ringing,
+                statusText = getString(R.string.incoming_call_title),
+                doorConfirm = null,
+            )
+        }
+
+        /** Like IncomingCallActivity.showCall(), talking not (yet) started. */
+        fun showCall() {
+            state = state.copy(
+                phase = IncomingCallPhase.Active,
+                statusText = getString(R.string.status_connected),
+                doorConfirm = null,
+            )
+        }
+    }
+
     private fun launch(): HostActivity =
         Robolectric.buildActivity(HostActivity::class.java).setup().get()
+
+    private fun launchCompose(): ComposeHostActivity =
+        Robolectric.buildActivity(ComposeHostActivity::class.java).setup().get()
+
+    /** The Compose path really ran: the content view is the ComposeView of setContent. */
+    private fun assertComposeHosted(activity: Activity) {
+        val content = activity.findViewById<ViewGroup>(android.R.id.content)
+        assertTrue("no ComposeView attached", content.getChildAt(0) is ComposeView && content.getChildAt(0).isShown)
+    }
 
     @Test
     fun callRinging() {
@@ -155,12 +239,108 @@ class IncomingCallScreenshotTest {
         capture(activity, "callRingingDoorSlider_01_sliderShown")
     }
 
+    @Test
+    fun callRinging_compose() {
+        val activity = launchCompose()
+        activity.showRinging()
+        settleCompose()
+
+        assertComposeHosted(activity)
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.STATUS_TEXT)
+            .assertTextEquals(activity.getString(R.string.incoming_call_title))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_ACCEPT).assertIsDisplayed()
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_accept))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_DECLINE).assertIsDisplayed()
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_decline))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_DOOR_OPEN_AND_HANG_UP).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_TALK).assertDoesNotExist()
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.DOOR_SLIDER).assertDoesNotExist()
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.TALK_STATUS_TEXT).assertTextEquals("")
+
+        capture(activity, "callRinging_01_initial", COMPOSE_SUBDIR)
+    }
+
+    @Test
+    fun callActive_compose() {
+        val activity = launchCompose()
+        activity.showRinging()
+        activity.showCall()
+        activity.state = activity.state.copy(talking = false)
+        settleCompose()
+
+        assertComposeHosted(activity)
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.STATUS_TEXT)
+            .assertTextEquals(activity.getString(R.string.status_connected))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_ACCEPT).assertDoesNotExist()
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_TALK).assertIsDisplayed()
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_talk_start))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_DOOR_OPEN).assertIsDisplayed()
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_door_open))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_HANG_UP).assertIsDisplayed()
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_hang_up))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.DOOR_SLIDER).assertDoesNotExist()
+
+        capture(activity, "callActive_01_connected", COMPOSE_SUBDIR)
+    }
+
+    @Test
+    fun callActiveTalking_compose() {
+        val activity = launchCompose()
+        activity.showRinging()
+        activity.showCall()
+        // As IntercomControls reports it: talking on, talk status from the Baichuan session.
+        activity.state = activity.state.copy(
+            talking = true,
+            talkStatusText = activity.getString(R.string.status_talk_active),
+        )
+        settleCompose()
+
+        assertComposeHosted(activity)
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_TALK)
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_talk_stop))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.TALK_STATUS_TEXT).assertIsDisplayed()
+            .assertTextEquals(activity.getString(R.string.status_talk_active))
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.STATUS_TEXT)
+            .assertTextEquals(activity.getString(R.string.status_connected))
+
+        capture(activity, "callActiveTalking_01_talkStatusShown", COMPOSE_SUBDIR)
+    }
+
+    @Test
+    fun callRingingDoorSlider_compose() {
+        val activity = launchCompose()
+        activity.showRinging()
+        // Like tapping "Open & hang up" (IncomingCallActivity.confirmDoor).
+        activity.state = activity.state.copy(
+            doorConfirm = SlideConfirmRequest(
+                label = activity.getString(R.string.slide_to_open_and_hang_up),
+                actionLabel = activity.getString(R.string.btn_door_open_and_hang_up),
+                token = 1,
+            ),
+            doorAction = DoorAction.DoorOpenAndHangUp,
+        )
+        settleCompose()
+
+        assertComposeHosted(activity)
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.BTN_ACCEPT).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(IncomingCallTestTags.DOOR_SLIDER).assertIsDisplayed()
+            .assertContentDescriptionEquals(activity.getString(R.string.slide_to_open_and_hang_up))
+
+        capture(activity, "callRingingDoorSlider_01_sliderShown", COMPOSE_SUBDIR)
+    }
+
     private fun settle() {
         shadowOf(Looper.getMainLooper()).idle()
     }
 
+    /** Recomposition after a state change, then the main looper (layout pass) like [settle]. */
+    private fun settleCompose() {
+        composeTestRule.waitForIdle()
+        settle()
+    }
+
     /** Draws the whole window (decor view) onto an opaque bitmap, as the Compose counterpart will. */
-    private fun capture(activity: Activity, fileName: String) {
+    private fun capture(activity: Activity, fileName: String, subDir: String? = null) {
         settle()
         val root = activity.window.decorView
         assertTrue("window not laid out", root.width > 0 && root.height > 0)
@@ -168,11 +348,11 @@ class IncomingCallScreenshotTest {
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
         root.draw(canvas)
-        saveScreenshot(bitmap, fileName)
+        saveScreenshot(bitmap, fileName, subDir)
     }
 
-    private fun saveScreenshot(bitmap: Bitmap, fileName: String) {
-        val localDir = screenshotDir()
+    private fun saveScreenshot(bitmap: Bitmap, fileName: String, subDir: String? = null) {
+        val localDir = if (subDir == null) screenshotDir() else File(screenshotDir(), subDir)
         if (!localDir.exists()) {
             localDir.mkdirs()
         }
@@ -188,6 +368,9 @@ class IncomingCallScreenshotTest {
     }
 
     companion object {
+        /** Compose captures keep the View file names, so they live in their own folder. */
+        private const val COMPOSE_SUBDIR = "compose"
+
         private fun screenshotDir() = File("build/outputs/screenshots/${IncomingCallScreenshotTest::class.java.simpleName}")
 
         /** Once per class, never per method: otherwise earlier captures of this run would be lost. */
@@ -195,6 +378,7 @@ class IncomingCallScreenshotTest {
         @BeforeClass
         fun clearScreenshots() {
             screenshotDir().listFiles { file -> file.extension == "png" }?.forEach { it.delete() }
+            File(screenshotDir(), COMPOSE_SUBDIR).listFiles { file -> file.extension == "png" }?.forEach { it.delete() }
         }
     }
 }
