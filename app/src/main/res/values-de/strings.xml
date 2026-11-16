@@ -3,6 +3,7 @@
 
     <string name="menu_settings">Einstellungen</string>
     <string name="toolbar_settings_title">Einstellungen</string>
+    <string name="nav_up">Nach oben</string>
 
     <string name="status_camera_not_configured">Kamera-Zugangsdaten fehlen – bitte in den Einstellungen eintragen</string>
     <string name="status_mic_permission_needed">Mikrofon-Berechtigung erforderlich</string>

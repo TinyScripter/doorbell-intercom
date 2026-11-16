@@ -5,6 +5,8 @@
 
     <string name="menu_settings">Settings</string>
     <string name="toolbar_settings_title">Settings</string>
+    <!-- Zurück-Pfeil in der Leiste der Einstellungsseiten (TalkBack) -->
+    <string name="nav_up">Navigate up</string>
 
     <string name="status_camera_not_configured">Camera credentials missing – please enter them in the settings</string>
     <string name="status_mic_permission_needed">Microphone permission required</string>
