@@ -232,7 +232,9 @@ private fun SlideTrack(
             // nur in Layout/Zeichnen gelesen, damit Ziehen nicht jedes Bild neu komponiert.
             Text(
                 text = request.label,
-                style = onVideoTextStyle(16.sp),
+                // Ungerundete Schriftgröße: der frühere SlideToConfirmView zeichnete den Text mit
+                // TypedValue.applyDimension, also anders als TextViews nicht auf ganze Pixel gerundet.
+                style = onVideoTextStyle(16.sp).copy(fontSize = 16.sp),
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 softWrap = false,
