@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import de.kleinabersmart.doorbellintercom.R
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
+import de.kleinabersmart.doorbellintercom.ui.theme.pixelRoundedFontSize
 
 /**
  * Hauptseite der Einstellungen (vorher settings_main.xml in activity_settings.xml): oben die
@@ -167,13 +168,17 @@ private fun QrCodeDialog(bitmap: ImageBitmap, onDismiss: () -> Unit) {
         title = { Text(text = stringResource(R.string.title_qr_dialog)) },
         text = {
             Column {
-                // Laufweite und Umbruch wie die TextView des MaterialAlertDialog (MDC BodyMedium).
+                // Schriftgröße (auf ganze Pixel gerundet), Laufweite und Umbruch wie die TextView
+                // des MaterialAlertDialog (MDC BodyMedium).
                 Text(
                     text = stringResource(R.string.message_qr_dialog),
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        letterSpacing = BodyMediumLetterSpacing,
-                        lineBreak = TextViewLineBreak,
-                    ),
+                    style = MaterialTheme.typography.bodyMedium.let {
+                        it.copy(
+                            fontSize = pixelRoundedFontSize(it.fontSize),
+                            letterSpacing = BodyMediumLetterSpacing,
+                            lineBreak = TextViewLineBreak,
+                        )
+                    },
                 )
                 QrCodeImage(
                     bitmap = bitmap,
