@@ -5,63 +5,78 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.doOnLayout
-import com.google.android.material.snackbar.Snackbar
-import de.kleinabersmart.doorbellintercom.databinding.ActivityMainBinding
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.kleinabersmart.doorbellintercom.ui.components.VideoLayer
+import de.kleinabersmart.doorbellintercom.ui.components.inflateLivePlayerView
+import de.kleinabersmart.doorbellintercom.ui.components.toggled
+import de.kleinabersmart.doorbellintercom.ui.main.MainScreen
+import de.kleinabersmart.doorbellintercom.ui.main.MainUiState
+import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Startbildschirm: zeigt direkt das Live-Bild und bietet die Gegensprechfunktion
- * an. Einstellungen sind über das Überlaufmenü (3 Punkte) oben rechts
- * erreichbar (siehe SettingsActivity).
+ * an. Einstellungen sind über das Symbol (3 Punkte) oben rechts erreichbar
+ * (siehe SettingsActivity).
  *
  * Video (inkl. Ton, falls die Kamera welchen über RTSP anbietet) kommt direkt
  * per RTSP von der Kamera (DirectRtspClient). Das Sprechen zur Klingel läuft
  * separat direkt per Baichuan-Protokoll (BaichuanTalkSession) – umgeht die
  * 3-5s-Latenz, die eine go2rtc/ffmpeg-Brücke dafür gehabt hätte.
+ *
+ * Die Oberfläche ist Compose (MainScreen); die Activity schreibt nur noch in [uiState]
+ * statt in Views. Das Live-Bild bleibt ein PlayerView (siehe VideoLayer).
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
+    private val uiState = MutableStateFlow(MainUiState())
     private lateinit var liveView: LiveViewController
     private lateinit var intercom: IntercomControls
     private var openingSettings = false
-    private var systemCheckSnackbar: Snackbar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
 
-        binding.topBar.applyTopSystemInset()
-        binding.bottomBar.applyBottomSystemInset()
-        PinchZoomController.attach(binding.videoView)
+        // Vor den Controllern erzeugt, die sofort eine echte Instanz brauchen; Compose zeigt ihn nur an.
+        val playerView = inflateLivePlayerView(this)
+        PinchZoomController.attach(playerView)
 
         liveView = LiveViewController(
             activity = this,
-            playerView = binding.videoView,
-            onStatus = { message -> binding.statusText.text = message },
+            playerView = playerView,
+            onStatus = ::showStatus,
             reportConnection = true
         )
         intercom = IntercomControls(
             context = this,
-            onStatus = { message -> binding.statusText.text = message },
-            onTalkStatus = { message -> binding.talkStatusText.text = message },
+            onStatus = ::showStatus,
+            onTalkStatus = { message -> uiState.update { it.copy(talkStatusText = message) } },
             onTalkStateChanged = { talking ->
-                binding.btnTalk.showTalkState(talking)
-                if (!talking) binding.talkStatusText.text = ""
+                uiState.update { it.copy(talking = talking, talkStatusText = if (talking) it.talkStatusText else "") }
             },
             onSpeakingChanged = liveView::setDucked
         )
-        binding.btnTalk.setOnClickListener { intercom.toggleTalk() }
-        // Erst schieben, dann öffnen: ein versehentlicher Tap soll die Tür nicht öffnen.
-        binding.btnDoorOpen.setOnClickListener {
-            binding.doorSlider.toggle(getString(R.string.slide_to_open), getString(R.string.btn_door_open), intercom::openDoor)
+
+        setContent {
+            val state by uiState.collectAsStateWithLifecycle()
+            DoorbellTheme {
+                MainScreen(
+                    state = state,
+                    onToggleTalk = { intercom.toggleTalk() },
+                    // Erst schieben, dann öffnen: ein versehentlicher Tap soll die Tür nicht öffnen.
+                    onDoorOpenClick = ::toggleDoorSlider,
+                    onDoorConfirmed = { intercom.openDoor() },
+                    onDoorDismiss = ::hideDoorSlider,
+                    onOpenSettings = ::openSettings,
+                    video = { VideoLayer(playerView) },
+                )
+            }
         }
 
         requestRuntimePermissions()
@@ -69,19 +84,6 @@ class MainActivity : AppCompatActivity() {
         DoorbellForegroundService.startOrStop(this)
         // Beim Push-Verteiler anmelden und den Endpunkt an Home Assistant melden (falls Registrierungs-URL konfiguriert).
         PushRegistrar.start(this)
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_settings) {
-            openSettings()
-            return true
-        }
-        return super.onOptionsItemSelected(item)
     }
 
     private fun openSettings() {
@@ -98,34 +100,44 @@ class MainActivity : AppCompatActivity() {
 
     /** Fehlt eine Voraussetzung fürs Klingeln, ein Hinweis mit Weg in die Einstellungen (siehe SystemCheck). */
     private fun showSystemCheckHint() {
-        if (SystemCheck.issues(this).isEmpty()) {
-            systemCheckSnackbar?.dismiss()
-            systemCheckSnackbar = null
-            return
+        val hasIssues = SystemCheck.issues(this).isNotEmpty()
+        uiState.update {
+            if (hasIssues) {
+                it.copy(showSystemCheckHint = true, systemCheckHintRequest = it.systemCheckHintRequest + 1)
+            } else {
+                it.copy(showSystemCheckHint = false)
+            }
         }
-        if (systemCheckSnackbar?.isShownOrQueued == true) return
-        // Nicht dauerhaft: es soll das Live-Bild nicht verdecken, kommt aber bei jedem Öffnen wieder.
-        val snackbar = Snackbar.make(binding.root, R.string.check_snackbar, SYSTEM_CHECK_HINT_MS)
-            .setAnchorView(binding.bottomBar)
-            .setAction(R.string.btn_check) { openSettings() }
-        systemCheckSnackbar = snackbar
-        // Erst nach dem Layout der Button-Leiste: beim ersten Start läge die Snackbar sonst über den Beschriftungen.
-        binding.bottomBar.doOnLayout { if (systemCheckSnackbar === snackbar) snackbar.show() }
     }
 
     override fun onStart() {
         super.onStart()
         openingSettings = false
-        binding.btnTalk.showTalkState(false)
+        uiState.update { it.copy(talking = false) }
         liveView.start()
     }
 
     override fun onStop() {
         super.onStop()
         intercom.stopTalk()
-        binding.doorSlider.hide()
+        hideDoorSlider()
         liveView.stop()
         if (!openingSettings) liveView.releaseVpn()
+    }
+
+    /** Ein zweiter Tap auf "Tür öffnen" blendet den Slider wieder aus. */
+    private fun toggleDoorSlider() {
+        val label = getString(R.string.slide_to_open)
+        val action = getString(R.string.btn_door_open)
+        uiState.update { it.copy(doorConfirm = it.doorConfirm.toggled(label, action)) }
+    }
+
+    private fun hideDoorSlider() {
+        uiState.update { it.copy(doorConfirm = null) }
+    }
+
+    private fun showStatus(message: String) {
+        uiState.update { it.copy(statusText = message) }
     }
 
     private fun requestRuntimePermissions() {
@@ -156,9 +168,5 @@ class MainActivity : AppCompatActivity() {
             // Läuft das Live-Bild schon, passiert nichts.
             liveView.start()
         }
-    }
-
-    private companion object {
-        const val SYSTEM_CHECK_HINT_MS = 8000
     }
 }
