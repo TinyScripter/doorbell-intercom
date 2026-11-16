@@ -131,7 +131,7 @@
     <string name="about_third_party_title">Fremdkomponenten</string>
     <string name="about_reolink_aio">Das für das Gegensprechen verwendete Reolink-Baichuan-Protokoll (Anmeldung, Verschlüsselung, Sprechsitzung, Audio-Framing) ist aus reolink_aio von starkillerOG portiert (MIT-Lizenz):\nhttps://github.com/starkillerOG/reolink_aio\n\nDiese App steht in keiner Verbindung zu Reolink.</string>
     <string name="about_libraries_title">Bibliotheken</string>
-    <string name="about_libraries">Diese App verwendet folgende Bibliotheken unter der Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):\n\n• AndroidX (core, appcompat, constraintlayout)\n• Material Components for Android\n• AndroidX Media3\n• HiveMQ MQTT Client\n• UnifiedPush Android connector\n• kotlinx.coroutines\n• ZXing core</string>
+    <string name="about_libraries">Diese App verwendet folgende Bibliotheken unter der Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):\n\n• AndroidX (core, appcompat, activity, lifecycle, core-telecom)\n• Jetpack Compose (UI, Foundation, Material 3)\n• Material Components for Android\n• AndroidX Media3\n• HiveMQ MQTT Client\n• UnifiedPush Android connector\n• kotlinx.coroutines\n• ZXing core</string>
     <string name="about_feather_icons">Das Telefonhörer-Symbol basiert auf Feather Icons (MIT-Lizenz):\nhttps://github.com/feathericons/feather</string>
     <string name="call_caller_name">Haustür</string>
     <string name="incoming_call_title">Es klingelt an der Tür</string>
