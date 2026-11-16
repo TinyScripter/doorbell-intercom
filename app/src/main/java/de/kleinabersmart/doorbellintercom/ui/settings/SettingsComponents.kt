@@ -63,7 +63,7 @@ import de.kleinabersmart.doorbellintercom.ui.theme.viewTextColorPrimary
 import de.kleinabersmart.doorbellintercom.ui.theme.viewTextColorSecondary
 import kotlin.math.roundToInt
 
-// Maße aus Widget.DoorbellIntercom.SettingsCard (themes.xml).
+// Maße der früheren Widget.DoorbellIntercom.SettingsCard (XML-Stil, mit der Migration entfernt).
 private val CardCornerRadius = 12.dp
 private val CardContentPadding = 16.dp
 private val CardBottomMargin = 16.dp

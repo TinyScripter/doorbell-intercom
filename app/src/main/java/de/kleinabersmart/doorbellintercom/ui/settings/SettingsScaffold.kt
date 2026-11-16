@@ -51,7 +51,7 @@ private val TitleStartOffset = 4.dp
  * activity_settings.xml): blaue Leiste mit Zurück-Pfeil und Titel, darunter ein scrollbarer
  * Inhaltsbereich mit 16dp Rand, in den die Seite ihre Karten legt.
  *
- * Insets wie zuvor in WindowInsetsExt.kt: die Leiste reicht unter Statusleiste und
+ * Insets wie zuvor bei den Views (applyTopSystemInset/applyBottomSystemAndImeInset): die Leiste reicht unter Statusleiste und
  * Kamera-Aussparung (Inset in der farbigen Fläche, nicht in der festen Toolbar-Höhe). Unten
  * gilt max(Navigationsleiste, Tastatur): imePadding() außerhalb des Scrollbereichs verkleinert
  * ihn bei offener Tastatur, sodass das fokussierte Feld sichtbar bleibt; die Navigationsleiste

@@ -68,12 +68,12 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 /**
- * Screenshot tests of the settings screens. Written as the baseline of the XML layouts
- * (activity_settings.xml scaffold with settings_main/camera/ringing/push/connections/ring_log/about.xml
- * and item_settings_entry.xml); since the pages were replaced by Compose (SettingsScreen,
- * CameraSettingsScreen, ...) the same test methods drive the same scenarios on the Compose pages,
- * with the former View checks expressed as Compose semantics (test tags from SettingsTestTags),
- * and keep their capture names.
+ * Screenshot tests of the settings screens (Compose: SettingsScreen, CameraSettingsScreen, ...).
+ * Originally written as the visual baseline of the former XML layouts (activity_settings.xml scaffold
+ * with settings_main/camera/ringing/push/connections/ring_log/about.xml and item_settings_entry.xml,
+ * all removed after the migration to Compose); the same test methods drive the same scenarios on the
+ * Compose pages, with the former View checks expressed as Compose semantics (test tags from
+ * SettingsTestTags), and keep their capture names.
  *
  * The real Activities are launched with `Robolectric.buildActivity(...).setup()` (create, start,
  * resume): under Robolectric their side effects are harmless. Section pages only write the

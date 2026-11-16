@@ -81,8 +81,7 @@ android {
     }
 
     buildFeatures {
-        // viewBinding bleibt für die Einstellungs-Bildschirme, Anruf- und Hauptbildschirm laufen in Compose.
-        viewBinding = true
+        // Alle Bildschirme (Anruf, Hauptbildschirm, Einstellungen) laufen in Compose, kein viewBinding mehr.
         compose = true
     }
 
@@ -131,7 +130,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
 
-    // Jetpack Compose für Anruf- und Hauptbildschirm; Versionen über die BOM.
+    // Jetpack Compose für alle Bildschirme (Anruf, Hauptbildschirm, Einstellungen); Versionen über die BOM.
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)
