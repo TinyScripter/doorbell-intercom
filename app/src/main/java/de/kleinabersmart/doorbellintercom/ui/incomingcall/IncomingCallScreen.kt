@@ -88,7 +88,7 @@ fun IncomingCallScreen(
         // Status- und Kameraleiste können oben ins Bild ragen (Notch), daher deren Abstand dazu.
         Text(
             text = state.statusText,
-            style = onVideoTextStyle(20.sp),
+            style = onVideoTextStyle(20.sp, includeFontPadding = true),
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.TopCenter)

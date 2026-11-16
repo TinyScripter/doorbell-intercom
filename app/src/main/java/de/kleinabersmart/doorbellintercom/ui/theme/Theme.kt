@@ -8,6 +8,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
 import de.kleinabersmart.doorbellintercom.R
@@ -72,17 +73,26 @@ private fun doorbellColorScheme(dark: Boolean): ColorScheme {
  * Schatten, damit er auch über hellem Bild lesbar bleibt. Der Schattenradius ist wie
  * android:shadowRadius in Pixeln angegeben. Bewusst ohne Material-Typografie (bodyLarge
  * hätte Zeilenhöhe und Laufweite), so wie die TextViews mit Plattform-Schrift.
+ *
+ * Mit Font-Padding wie TextView (includeFontPadding ist dort Standard), damit die Zeilen
+ * gleich hoch sind und die Buttons nicht tiefer rutschen.
  */
 @Composable
 fun overlayTextStyle(fontSize: TextUnit): TextStyle = TextStyle(
     color = colorResource(R.color.on_video),
     fontSize = fontSize,
     shadow = Shadow(color = colorResource(R.color.on_video_shadow), blurRadius = 4f),
+    platformStyle = PlatformTextStyle(includeFontPadding = true),
 )
 
-/** Wie [overlayTextStyle], aber ohne Schatten (Statuszeile oben, Slider-Beschriftung). */
+/**
+ * Wie [overlayTextStyle], aber ohne Schatten (Statuszeile oben, Slider-Beschriftung).
+ * [includeFontPadding] für Texte, die frühere TextViews ersetzen (gleiche Zeilenhöhe); die
+ * Slider-Beschriftung zeichnete der View selbst, dort ohne.
+ */
 @Composable
-fun onVideoTextStyle(fontSize: TextUnit): TextStyle = TextStyle(
+fun onVideoTextStyle(fontSize: TextUnit, includeFontPadding: Boolean = false): TextStyle = TextStyle(
     color = colorResource(R.color.on_video),
     fontSize = fontSize,
+    platformStyle = PlatformTextStyle(includeFontPadding = includeFontPadding),
 )

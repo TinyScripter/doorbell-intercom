@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,7 +43,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,10 +121,26 @@ fun MainScreen(
             // Das Statusleisten-Inset gehört in die abgedunkelte Fläche, nicht in die feste
             // Höhe der Leiste – sonst würden Titel und Symbol abgeschnitten.
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                title = {
+                    // Wie der Toolbar-Titel (TextView): Font-Padding statt fester Zeilenhöhe,
+                    // sonst sitzt der Titel einige Pixel höher.
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = LocalTextStyle.current.copy(
+                            lineHeight = TextUnit.Unspecified,
+                            platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        ),
+                    )
+                },
                 actions = {
                     // Drei Punkte als eigenes Symbol, das direkt die Einstellungen öffnet (kein Überlaufmenü).
-                    IconButton(onClick = onOpenSettings, modifier = Modifier.testTag(MainTestTags.ACTION_SETTINGS)) {
+                    // Toolbar-Menüsymbole sitzen 4dp näher am Rand als die Compose-Actions.
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier
+                            .offset(x = 4.dp)
+                            .testTag(MainTestTags.ACTION_SETTINGS),
+                    ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_settings_dots),
                             contentDescription = stringResource(R.string.menu_settings),
@@ -137,7 +157,7 @@ fun MainScreen(
             )
             Text(
                 text = state.statusText,
-                style = onVideoTextStyle(16.sp),
+                style = onVideoTextStyle(16.sp, includeFontPadding = true),
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
