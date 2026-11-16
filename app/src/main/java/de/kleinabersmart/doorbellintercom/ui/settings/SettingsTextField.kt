@@ -139,10 +139,13 @@ fun SettingsTextField(
                 ),
             ) {
                 if (value.isEmpty()) {
+                    // Wie der Hinweis eines einzeiligen EditTexts: eine Zeile ohne Umbruch, ein zu
+                    // langer Hinweis wird am rechten Rand abgeschnitten (nicht am Wortende).
                     Text(
                         text = hint,
                         style = textStyle.copy(color = colors.onBackground.copy(alpha = HintAlpha)),
                         maxLines = 1,
+                        softWrap = false,
                         overflow = TextOverflow.Clip,
                     )
                 }

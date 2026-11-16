@@ -1,48 +1,63 @@
 package de.kleinabersmart.doorbellintercom
 
-import android.view.ViewGroup
-import de.kleinabersmart.doorbellintercom.databinding.SettingsPushBinding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import de.kleinabersmart.doorbellintercom.ui.settings.PushSettingsScreen
+import de.kleinabersmart.doorbellintercom.ui.settings.PushSettingsUiState
 
-/** Einstellungen: Push (UnifiedPush), MQTT-Fallback und Benachrichtigung bei Annahme durch ein anderes Telefon. */
+/**
+ * Einstellungen: Push (UnifiedPush), MQTT-Fallback und Benachrichtigung bei Annahme durch ein anderes Telefon.
+ *
+ * Die Oberfläche ist Compose (PushSettingsScreen); der Zustand liegt als Snapshot-State in der
+ * Activity, damit [saveFieldsIntoConfig] und die Registrierung ihn synchron lesen können.
+ */
 class PushSettingsActivity : SettingsSectionActivity() {
 
-    private lateinit var binding: SettingsPushBinding
+    private val uiState = mutableStateOf(PushSettingsUiState())
 
     override val titleRes = R.string.section_push_settings
 
-    override fun onCreateContent(container: ViewGroup) {
-        binding = SettingsPushBinding.inflate(layoutInflater, container)
-        binding.btnRegisterDevice.setOnClickListener { registerDevice() }
-        binding.btnUnregisterDevice.setOnClickListener { unregisterDevice() }
-
-        binding.editRegistrationUrl.setText(config.registrationUrl)
-        binding.editDeviceName.setText(config.deviceName)
-        binding.editMqttHost.setText(config.mqttHost)
-        binding.editMqttPort.setText(config.mqttPort.toString())
-        binding.editMqttUser.setText(config.mqttUsername)
-        binding.editMqttPass.setText(config.mqttPassword)
-        binding.editMqttTopic.setText(config.mqttTopic)
-        binding.switchMqttFallback.isChecked = config.mqttFallbackEnabled
-        binding.checkNotifyAnsweredElsewhere.isChecked = config.notifyAnsweredElsewhere
+    override fun createContent(): @Composable () -> Unit {
+        uiState.value = PushSettingsUiState(
+            registrationUrl = config.registrationUrl,
+            deviceName = config.deviceName,
+            mqttFallbackEnabled = config.mqttFallbackEnabled,
+            mqttHost = config.mqttHost,
+            mqttPort = config.mqttPort.toString(),
+            mqttUser = config.mqttUsername,
+            mqttPassword = config.mqttPassword,
+            mqttTopic = config.mqttTopic,
+            notifyAnsweredElsewhere = config.notifyAnsweredElsewhere,
+        )
+        return {
+            PushSettingsScreen(
+                state = uiState.value,
+                onStateChange = { uiState.value = it },
+                onRegisterClick = ::registerDevice,
+                onUnregisterClick = ::unregisterDevice,
+                onNavigateUp = ::finish,
+            )
+        }
     }
 
     override fun saveFieldsIntoConfig() {
-        config.registrationUrl = binding.editRegistrationUrl.text.toString().trim()
+        val state = uiState.value
+        config.registrationUrl = state.registrationUrl.trim()
         // Leer lassen gilt als "Standardname": der Getter erzeugt dann wieder einen.
-        config.deviceName = binding.editDeviceName.text.toString().trim()
-        config.mqttHost = binding.editMqttHost.text.toString().trim()
-        config.mqttPort = binding.editMqttPort.text.toString().toIntOrNull() ?: 1883
-        config.mqttUsername = binding.editMqttUser.text.toString().trim()
-        config.mqttPassword = binding.editMqttPass.text.toString()
-        config.mqttTopic = binding.editMqttTopic.text.toString().trim()
-        config.mqttFallbackEnabled = binding.switchMqttFallback.isChecked
-        config.notifyAnsweredElsewhere = binding.checkNotifyAnsweredElsewhere.isChecked
+        config.deviceName = state.deviceName.trim()
+        config.mqttHost = state.mqttHost.trim()
+        config.mqttPort = state.mqttPort.toIntOrNull() ?: 1883
+        config.mqttUsername = state.mqttUser.trim()
+        config.mqttPassword = state.mqttPassword
+        config.mqttTopic = state.mqttTopic.trim()
+        config.mqttFallbackEnabled = state.mqttFallbackEnabled
+        config.notifyAnsweredElsewhere = state.notifyAnsweredElsewhere
     }
 
     /** Nutzt die Werte aus den Feldern, auch wenn sie noch nicht gespeichert sind. */
     private fun registerDevice() {
-        val url = binding.editRegistrationUrl.text.toString().trim()
-        val device = binding.editDeviceName.text.toString().trim()
+        val url = uiState.value.registrationUrl.trim()
+        val device = uiState.value.deviceName.trim()
         if (!checkRegistrationFields(url, device)) return
         // Ohne Endpunkt zuerst beim Push-Verteiler anmelden; der Endpunkt kommt asynchron
         // und wird dann von DoorbellPushService gemeldet.
@@ -70,8 +85,8 @@ class PushSettingsActivity : SettingsSectionActivity() {
     }
 
     private fun unregisterDevice() {
-        val url = binding.editRegistrationUrl.text.toString().trim()
-        val device = binding.editDeviceName.text.toString().trim()
+        val url = uiState.value.registrationUrl.trim()
+        val device = uiState.value.deviceName.trim()
         if (!checkRegistrationFields(url, device)) return
         PushRegistrar.unregister(url, device) { result ->
             runOnUiThread {

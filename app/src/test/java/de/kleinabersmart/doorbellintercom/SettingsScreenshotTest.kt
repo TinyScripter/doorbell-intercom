@@ -12,7 +12,6 @@ import android.os.PowerManager
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.TextView
@@ -42,7 +41,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.core.app.ApplicationProvider
-import com.google.android.material.materialswitch.MaterialSwitch
 import de.kleinabersmart.doorbellintercom.ui.settings.SettingsEntry
 import de.kleinabersmart.doorbellintercom.ui.settings.SettingsTestTags
 import org.junit.Assert.assertEquals
@@ -342,29 +340,35 @@ class SettingsScreenshotTest {
     @Test
     fun settingsPush() {
         captureScreen(PushSettingsActivity::class.java, "settingsPush") { activity ->
-            assertTitle(activity, R.string.section_push_settings)
-            assertField(activity, R.id.editRegistrationUrl, "https://ha.example.com/api/webhook/doorbell_register")
-            assertField(activity, R.id.editDeviceName, "Pixel 9 (a1b2)")
-            assertTrue(activity.findViewById<Button>(R.id.btnRegisterDevice).isEnabled)
-            assertTrue(activity.findViewById<Button>(R.id.btnUnregisterDevice).isEnabled)
-            assertTrue(activity.findViewById<MaterialSwitch>(R.id.switchMqttFallback).isChecked)
-            assertField(activity, R.id.editMqttHost, "192.168.178.10")
-            assertField(activity, R.id.editMqttPort, "1883")
-            assertField(activity, R.id.editMqttUser, "doorbell")
-            assertField(activity, R.id.editMqttPass, "mqtt-secret")
-            assertField(activity, R.id.editMqttTopic, "doorbell/ring")
-            assertTrue(activity.findViewById<CheckBox>(R.id.checkNotifyAnsweredElsewhere).isChecked)
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.section_push_settings)
+            assertComposeField(SettingsTestTags.FIELD_REGISTRATION_URL, "https://ha.example.com/api/webhook/doorbell_register")
+            assertComposeField(SettingsTestTags.FIELD_DEVICE_NAME, "Pixel 9 (a1b2)")
+            composeTestRule.onNodeWithTag(SettingsTestTags.BTN_REGISTER_DEVICE).assertIsEnabled()
+                .assertTextEquals(activity.getString(R.string.btn_register_device))
+            composeTestRule.onNodeWithTag(SettingsTestTags.BTN_UNREGISTER_DEVICE).assertIsEnabled()
+                .assertTextEquals(activity.getString(R.string.btn_unregister_device))
+            composeTestRule.onNodeWithTag(SettingsTestTags.SWITCH_MQTT_FALLBACK).assertIsOn()
+            assertComposeField(SettingsTestTags.FIELD_MQTT_HOST, "192.168.178.10")
+            assertComposeField(SettingsTestTags.FIELD_MQTT_PORT, "1883")
+            assertComposeField(SettingsTestTags.FIELD_MQTT_USER, "doorbell")
+            assertComposeField(SettingsTestTags.FIELD_MQTT_PASS, "mqtt-secret", password = true)
+            // Raw password as onCreate wrote it back from the field state (saveFieldsIntoConfig).
+            assertEquals("mqtt-secret", AppConfig(activity).mqttPassword)
+            assertComposeField(SettingsTestTags.FIELD_MQTT_TOPIC, "doorbell/ring")
+            composeTestRule.onNodeWithTag(SettingsTestTags.CHECK_NOTIFY_ANSWERED_ELSEWHERE).assertIsOn()
         }
     }
 
     @Test
     fun settingsConnections() {
         captureScreen(ConnectionsSettingsActivity::class.java, "settingsConnections") { activity ->
-            assertTitle(activity, R.string.section_connections)
-            assertField(activity, R.id.editDoorOpenUrl, "https://ha.example.com/api/webhook/door_open")
-            assertTrue(activity.findViewById<MaterialSwitch>(R.id.switchWireguardAutoVpn).isChecked)
-            assertField(activity, R.id.editWireguardTunnel, "home")
-            assertTrue(activity.findViewById<MaterialSwitch>(R.id.switchSilentWhenUnreachable).isChecked)
+            assertComposeHosted(activity)
+            assertComposeTitle(activity, R.string.section_connections)
+            assertComposeField(SettingsTestTags.FIELD_DOOR_OPEN_URL, "https://ha.example.com/api/webhook/door_open")
+            composeTestRule.onNodeWithTag(SettingsTestTags.SWITCH_WIREGUARD_AUTO_VPN).assertIsOn()
+            assertComposeField(SettingsTestTags.FIELD_WIREGUARD_TUNNEL, "home")
+            composeTestRule.onNodeWithTag(SettingsTestTags.SWITCH_SILENT_WHEN_UNREACHABLE).assertIsOn()
             // Permission was granted beforehand: no permission request on create.
             assertNull(shadowOf(activity).lastRequestedPermission)
         }
@@ -487,10 +491,6 @@ class SettingsScreenshotTest {
         val layouts = mutableListOf<TextLayoutResult>()
         checkNotNull(node.config[SemanticsActions.GetTextLayoutResult].action).invoke(layouts)
         return layouts.single().layoutInput.style.color
-    }
-
-    private fun assertField(activity: Activity, id: Int, expected: String) {
-        assertEquals(expected, activity.findViewById<EditText>(id).text.toString())
     }
 
     /**

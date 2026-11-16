@@ -53,6 +53,25 @@ object SettingsTestTags {
     const val SWITCH_TELECOM_CALLS = "switch_telecom_calls"
     const val TELECOM_CALLS_SUMMARY = "telecom_calls_summary"
 
+    // Push (settings_push.xml)
+    const val FIELD_REGISTRATION_URL = "field_registration_url"
+    const val FIELD_DEVICE_NAME = "field_device_name"
+    const val BTN_REGISTER_DEVICE = "btn_register_device"
+    const val BTN_UNREGISTER_DEVICE = "btn_unregister_device"
+    const val SWITCH_MQTT_FALLBACK = "switch_mqtt_fallback"
+    const val FIELD_MQTT_HOST = "field_mqtt_host"
+    const val FIELD_MQTT_PORT = "field_mqtt_port"
+    const val FIELD_MQTT_USER = "field_mqtt_user"
+    const val FIELD_MQTT_PASS = "field_mqtt_pass"
+    const val FIELD_MQTT_TOPIC = "field_mqtt_topic"
+    const val CHECK_NOTIFY_ANSWERED_ELSEWHERE = "check_notify_answered_elsewhere"
+
+    // Weitere Verbindungen (settings_connections.xml)
+    const val FIELD_DOOR_OPEN_URL = "field_door_open_url"
+    const val SWITCH_WIREGUARD_AUTO_VPN = "switch_wireguard_auto_vpn"
+    const val FIELD_WIREGUARD_TUNNEL = "field_wireguard_tunnel"
+    const val SWITCH_SILENT_WHEN_UNREACHABLE = "switch_silent_when_unreachable"
+
     /** Systemcheck-Hinweis an Position [index] (vorher Kind [index] von checkList). */
     fun checkIssue(index: Int) = "check_issue_$index"
 }
