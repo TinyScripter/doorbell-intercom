@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live-Bild für die Compose-Bildschirme (VideoLayer). Eigene Layout-Datei, weil sich
+     surface_type nur per XML setzen lässt; TextureView braucht PinchZoomController für
+     Zoom und Verschieben. Die Activity bläht sie in onCreate auf, vor LiveViewController. -->
+<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/videoView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:surface_type="texture_view"
+    app:use_controller="false" />
