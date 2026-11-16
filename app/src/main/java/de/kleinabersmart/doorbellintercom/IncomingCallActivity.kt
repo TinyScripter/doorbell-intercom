@@ -4,12 +4,23 @@ import android.app.KeyguardManager
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.view.View
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import de.kleinabersmart.doorbellintercom.databinding.ActivityIncomingCallBinding
+import de.kleinabersmart.doorbellintercom.ui.components.VideoLayer
+import de.kleinabersmart.doorbellintercom.ui.components.inflateLivePlayerView
+import de.kleinabersmart.doorbellintercom.ui.components.toggled
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.DoorAction
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.IncomingCallPhase
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.IncomingCallScreen
+import de.kleinabersmart.doorbellintercom.ui.incomingcall.IncomingCallUiState
+import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -25,11 +36,14 @@ import kotlinx.coroutines.launch
  * Bei gesperrtem Handy verlangen "Annehmen" und "Tür öffnen + Auflegen" zuerst
  * die Entsperrung, damit die Tür nicht vom Sperrbildschirm aus geöffnet werden kann.
  * Beide Tür-Buttons blenden zunächst nur den Slider "Zum Öffnen schieben" ein
- * (SlideToConfirmView); entsperrt wird erst nach dem Schieben.
+ * (SlideToConfirm); entsperrt wird erst nach dem Schieben.
+ *
+ * Die Oberfläche ist Compose (IncomingCallScreen); die Activity schreibt nur noch in
+ * [uiState] statt in Views. Das Live-Bild bleibt ein PlayerView (siehe VideoLayer).
  */
 class IncomingCallActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityIncomingCallBinding
+    private val uiState = MutableStateFlow(IncomingCallUiState())
     private lateinit var intercom: IntercomControls
     private lateinit var liveView: LiveViewController
     private lateinit var calls: CallController
@@ -39,13 +53,12 @@ class IncomingCallActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityIncomingCallBinding.inflate(layoutInflater)
-        setContentView(binding.root)
         calls = appContainer.callController
+        showStatus(getString(R.string.incoming_call_title))
 
-        binding.statusText.applyTopSystemInset()
-        binding.bottomArea.applyBottomSystemInset()
-        PinchZoomController.attach(binding.videoView)
+        // Vor den Controllern erzeugt, die sofort eine echte Instanz brauchen; Compose zeigt ihn nur an.
+        val playerView = inflateLivePlayerView(this)
+        PinchZoomController.attach(playerView)
 
         // Display einschalten; über dem Sperrbildschirm nur bis zum Annehmen (siehe showRinging/showCall).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -54,41 +67,44 @@ class IncomingCallActivity : AppCompatActivity() {
 
         liveView = LiveViewController(
             activity = this,
-            playerView = binding.videoView,
-            onStatus = { message -> binding.statusText.text = message },
+            playerView = playerView,
+            onStatus = ::showStatus,
             reportConnection = false,
             muted = true
         )
         intercom = IntercomControls(
             context = this,
-            onStatus = { message -> binding.statusText.text = message },
-            onTalkStatus = { message -> binding.talkStatusText.text = message },
+            onStatus = ::showStatus,
+            onTalkStatus = { message -> uiState.update { it.copy(talkStatusText = message) } },
             onTalkStateChanged = { talking ->
-                binding.btnTalk.showTalkState(talking)
-                if (!talking) binding.talkStatusText.text = ""
+                uiState.update { it.copy(talking = talking, talkStatusText = if (talking) it.talkStatusText else "") }
             },
             onSpeakingChanged = liveView::setDucked
         )
 
-        binding.btnAccept.setOnClickListener { acceptCall() }
-        binding.btnDecline.setOnClickListener { calls.decline(CallController.SOURCE_SCREEN) }
-        binding.btnTalk.setOnClickListener {
-            if (isHeld) {
-                // Gehalten (Telefonat): Tippen setzt fort und startet danach das Sprechen.
-                talkAfterResume = true
-                calls.requestResume()
-            } else {
-                intercom.toggleTalk()
-            }
-        }
-        // Nach dem Annehmen ist das Handy entsperrt; runUnlocked sichert trotzdem ab.
-        binding.btnDoorOpen.setOnClickListener {
-            confirmDoor(R.string.slide_to_open, R.string.btn_door_open) { runUnlocked(intercom::openDoor) }
-        }
-        binding.btnHangUp.setOnClickListener { calls.hangUp() }
-        binding.btnDoorOpenAndHangUp.setOnClickListener {
-            confirmDoor(R.string.slide_to_open_and_hang_up, R.string.btn_door_open_and_hang_up) {
-                runUnlocked(::openDoorAndHangUp)
+        setContent {
+            val state by uiState.collectAsStateWithLifecycle()
+            DoorbellTheme {
+                IncomingCallScreen(
+                    state = state,
+                    onAccept = ::acceptCall,
+                    onDecline = { calls.decline(CallController.SOURCE_SCREEN) },
+                    onDoorOpenAndHangUpClick = {
+                        confirmDoor(
+                            R.string.slide_to_open_and_hang_up,
+                            R.string.btn_door_open_and_hang_up,
+                            DoorAction.DoorOpenAndHangUp
+                        )
+                    },
+                    onTalk = ::onTalkClick,
+                    onDoorOpenClick = {
+                        confirmDoor(R.string.slide_to_open, R.string.btn_door_open, DoorAction.DoorOpen)
+                    },
+                    onHangUp = { calls.hangUp() },
+                    onDoorConfirmed = ::onDoorConfirmed,
+                    onDoorDismiss = ::hideDoorSlider,
+                    video = { VideoLayer(playerView) },
+                )
             }
         }
 
@@ -120,7 +136,7 @@ class IncomingCallActivity : AppCompatActivity() {
         super.onStop()
         calls.onCallScreenStopped()
         intercom.stopTalk()
-        binding.doorSlider.hide()
+        hideDoorSlider()
         liveView.stop()
     }
 
@@ -141,7 +157,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 if (previous !is CallState.Active) showCall()
                 liveView.voiceCall = state.systemCall
                 if (state.held != ((previous as? CallState.Active)?.held ?: false)) showHeld(state.held)
-                if (state.rangAgain) binding.statusText.text = getString(R.string.status_rang_again)
+                if (state.rangAgain) showStatus(getString(R.string.status_rang_again))
             }
         }
     }
@@ -149,23 +165,29 @@ class IncomingCallActivity : AppCompatActivity() {
     /** Auch nach einem liegen gelassenen Gespräch, wenn es erneut klingelt (siehe CallController.onCallScreenStarted). */
     private fun showRinging() {
         intercom.stopTalk()
-        binding.doorSlider.hide()
         liveView.muted = true
-        binding.statusText.text = getString(R.string.incoming_call_title)
-        binding.buttonBar.visibility = View.VISIBLE
-        binding.callControls.visibility = View.GONE
+        uiState.update {
+            it.copy(
+                phase = IncomingCallPhase.Ringing,
+                statusText = getString(R.string.incoming_call_title),
+                doorConfirm = null
+            )
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
         }
     }
 
     private fun showCall() {
-        // Ein noch offener Slider gehörte zu "Öffnen & Ende" vor dem Annehmen.
-        binding.doorSlider.hide()
         liveView.muted = false
-        binding.statusText.text = getString(R.string.status_connected)
-        binding.buttonBar.visibility = View.GONE
-        binding.callControls.visibility = View.VISIBLE
+        // Ein noch offener Slider gehörte zu "Öffnen & Ende" vor dem Annehmen.
+        uiState.update {
+            it.copy(
+                phase = IncomingCallPhase.Active,
+                statusText = getString(R.string.status_connected),
+                doorConfirm = null
+            )
+        }
         // Wie beim Telefon: nach dem Annehmen ist man sofort zu hören.
         intercom.startTalk()
 
@@ -179,6 +201,16 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private val isHeld: Boolean get() = (shown as? CallState.Active)?.held == true
 
+    private fun onTalkClick() {
+        if (isHeld) {
+            // Gehalten (Telefonat): Tippen setzt fort und startet danach das Sprechen.
+            talkAfterResume = true
+            calls.requestResume()
+        } else {
+            intercom.toggleTalk()
+        }
+    }
+
     /** Nach dem Fortsetzen sofort sprechen: das Fortsetzen kam vom Tippen aufs Mikrofon. */
     private var talkAfterResume = false
 
@@ -188,9 +220,9 @@ class IncomingCallActivity : AppCompatActivity() {
         if (held) {
             talkAfterResume = false
             intercom.stopTalk()
-            binding.statusText.text = getString(R.string.status_call_held)
+            showStatus(getString(R.string.status_call_held))
         } else {
-            binding.statusText.text = getString(R.string.status_connected)
+            showStatus(getString(R.string.status_connected))
             if (talkAfterResume) intercom.startTalk()
             talkAfterResume = false
         }
@@ -202,7 +234,7 @@ class IncomingCallActivity : AppCompatActivity() {
         val url = AppConfig(appContext).doorOpenUrl
         if (url.isBlank()) {
             // Ohne Türöffner-URL nicht auflegen, sonst ginge die Fehlermeldung unter.
-            binding.statusText.text = getString(R.string.status_door_open_not_configured)
+            showStatus(getString(R.string.status_door_open_not_configured))
             return
         }
         DoorOpenClient.trigger(appContext, url) { _, message ->
@@ -215,8 +247,26 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun acceptCall() = runUnlocked { calls.accept() }
 
     /** Tür-Aktionen erst nach dem Schieben; ein zweiter Tap auf denselben Button blendet den Slider wieder aus. */
-    private fun confirmDoor(@StringRes label: Int, @StringRes action: Int, onConfirmed: () -> Unit) {
-        binding.doorSlider.toggle(getString(label), getString(action), onConfirmed)
+    private fun confirmDoor(@StringRes label: Int, @StringRes action: Int, door: DoorAction) {
+        val labelText = getString(label)
+        val actionText = getString(action)
+        uiState.update { it.copy(doorConfirm = it.doorConfirm.toggled(labelText, actionText), doorAction = door) }
+    }
+
+    /** Nach dem Annehmen ist das Handy entsperrt; runUnlocked sichert trotzdem ab. */
+    private fun onDoorConfirmed(door: DoorAction) {
+        when (door) {
+            DoorAction.DoorOpen -> runUnlocked(intercom::openDoor)
+            DoorAction.DoorOpenAndHangUp -> runUnlocked(::openDoorAndHangUp)
+        }
+    }
+
+    private fun hideDoorSlider() {
+        uiState.update { it.copy(doorConfirm = null) }
+    }
+
+    private fun showStatus(message: String) {
+        uiState.update { it.copy(statusText = message) }
     }
 
     /**
@@ -235,7 +285,7 @@ class IncomingCallActivity : AppCompatActivity() {
             }
 
             override fun onDismissCancelled() {
-                binding.statusText.text = getString(R.string.status_unlock_cancelled)
+                showStatus(getString(R.string.status_unlock_cancelled))
             }
         })
     }
