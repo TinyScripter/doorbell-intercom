@@ -63,46 +63,4 @@
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">?attr/colorPrimary</item>
     </style>
-
-    <!-- Runde Icon-Buttons (Annehmen, Sprechen, Tür öffnen, …) über dem Video.
-         Die farbige Fläche (bg_btn_*) setzt jeder Button selbst. -->
-    <style name="Widget.DoorbellIntercom.IconButton" parent="">
-        <item name="android:layout_width">88dp</item>
-        <item name="android:layout_height">88dp</item>
-        <item name="android:padding">17dp</item>
-        <item name="android:scaleType">fitCenter</item>
-        <item name="android:elevation">6dp</item>
-    </style>
-
-    <!-- Spalte aus rundem Button und Beschriftung darunter. Breiter als der Button, damit
-         längere Beschriftungen ("Öffnen & Ende") nicht umbrechen. -->
-    <style name="Widget.DoorbellIntercom.ButtonColumn" parent="">
-        <item name="android:layout_width">104dp</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:gravity">center_horizontal</item>
-        <item name="android:orientation">vertical</item>
-    </style>
-
-    <!-- Beschriftung unter den runden Buttons. TalkBack liest den Button selbst vor
-         (contentDescription), daher ist sie für die Bedienungshilfe ausgeblendet. -->
-    <style name="Widget.DoorbellIntercom.ButtonLabel" parent="">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">6dp</item>
-        <item name="android:gravity">center</item>
-        <item name="android:importantForAccessibility">no</item>
-        <item name="android:maxLines">2</item>
-        <item name="android:shadowColor">@color/on_video_shadow</item>
-        <item name="android:shadowRadius">4</item>
-        <item name="android:textColor">@color/on_video</item>
-        <item name="android:textSize">14sp</item>
-    </style>
-
-    <!-- "Zum Öffnen schieben" über den Buttons (SlideToConfirmView) -->
-    <style name="Widget.DoorbellIntercom.DoorSlider" parent="">
-        <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">64dp</item>
-        <item name="android:layout_marginHorizontal">24dp</item>
-        <item name="android:layout_marginBottom">8dp</item>
-    </style>
 </resources>

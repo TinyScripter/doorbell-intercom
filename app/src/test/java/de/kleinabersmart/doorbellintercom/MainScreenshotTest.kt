@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Looper
-import android.view.Menu
 import android.view.ViewGroup
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -18,11 +17,10 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.core.view.isVisible
-import de.kleinabersmart.doorbellintercom.databinding.ActivityMainBinding
 import de.kleinabersmart.doorbellintercom.ui.components.SlideConfirmRequest
 import de.kleinabersmart.doorbellintercom.ui.components.VideoLayer
 import de.kleinabersmart.doorbellintercom.ui.components.inflateLivePlayerView
@@ -30,9 +28,6 @@ import de.kleinabersmart.doorbellintercom.ui.main.MainScreen
 import de.kleinabersmart.doorbellintercom.ui.main.MainTestTags
 import de.kleinabersmart.doorbellintercom.ui.main.MainUiState
 import de.kleinabersmart.doorbellintercom.ui.theme.DoorbellTheme
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Rule
@@ -48,19 +43,20 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 /**
- * Screenshot tests of the main screen (activity_main.xml).
+ * Screenshot tests of the main screen (MainScreen, formerly activity_main.xml + menu_main.xml).
  *
- * The real MainActivity starts VPN, RTSP, push registration and services, so [HostActivity]
- * only repeats its view setup: same theme, layout, toolbar as support action bar with
- * menu_main (settings action) and the system insets. The PlayerView has no player and renders black.
+ * The real MainActivity starts VPN, RTSP, push registration and services, so [ComposeHostActivity]
+ * only hosts MainScreen like MainActivity (same theme, DoorbellTheme, PlayerView without player via
+ * VideoLayer, which renders black) and the capture draws the whole decor view.
  *
- * The `<method>_compose` tests render the migrated MainScreen the same way: [ComposeHostActivity]
- * hosts it like MainActivity (same theme, DoorbellTheme, PlayerView without player via VideoLayer)
- * and the capture draws the decor view identically.
+ * The original tests (mainIdle, ...) were written against the XML layout; since the layout was
+ * replaced by Compose they drive the same scenarios on the Compose screen, with the original checks
+ * expressed as semantics, and keep their capture names. The `<method>_compose` tests were added
+ * during the migration for the side-by-side comparison.
  *
  * Device: Pixel 9 class phone (1080 x 2424 px at 420 dpi = 411 x 923 dp), light mode, values/ strings.
- * Screenshots go to app/build/outputs/screenshots/MainScreenshotTest/ (View) and its
- * compose/ subfolder (Compose, same file names for a 1:1 comparison).
+ * Screenshots go to app/build/outputs/screenshots/MainScreenshotTest/ (original tests) and its
+ * compose/ subfolder (`_compose` tests, same file names).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -69,33 +65,6 @@ class MainScreenshotTest {
 
     @get:Rule
     val composeTestRule = createEmptyComposeRule()
-
-    /** Minimal host with the UI setup of MainActivity, without its services. */
-    class HostActivity : AppCompatActivity() {
-        lateinit var binding: ActivityMainBinding
-        var menu: Menu? = null
-
-        override fun onCreate(savedInstanceState: Bundle?) {
-            setTheme(R.style.Theme_DoorbellIntercom)
-            super.onCreate(savedInstanceState)
-            binding = ActivityMainBinding.inflate(layoutInflater)
-            setContentView(binding.root)
-            setSupportActionBar(binding.toolbar)
-            binding.topBar.applyTopSystemInset()
-            binding.bottomBar.applyBottomSystemInset()
-        }
-
-        override fun onCreateOptionsMenu(menu: Menu): Boolean {
-            menuInflater.inflate(R.menu.menu_main, menu)
-            this.menu = menu
-            return true
-        }
-
-        override fun onStart() {
-            super.onStart()
-            binding.btnTalk.showTalkState(false)
-        }
-    }
 
     /** Compose host with the theme of MainActivity and its setContent, without its services. */
     class ComposeHostActivity : AppCompatActivity() {
@@ -122,9 +91,6 @@ class MainScreenshotTest {
         }
     }
 
-    private fun launch(): HostActivity =
-        Robolectric.buildActivity(HostActivity::class.java).setup().get()
-
     private fun launchCompose(): ComposeHostActivity =
         Robolectric.buildActivity(ComposeHostActivity::class.java).setup().get()
 
@@ -142,72 +108,69 @@ class MainScreenshotTest {
             .assertContentDescriptionEquals(activity.getString(R.string.menu_settings))
     }
 
-    /** Toolbar with title and settings action, as in every main screen state. */
-    private fun assertToolbar(activity: HostActivity) {
-        val binding = activity.binding
-        assertTrue(binding.toolbar.isShown)
-        assertEquals(activity.getString(R.string.app_name), binding.toolbar.title.toString())
-        val settings = activity.menu?.findItem(R.id.action_settings)
-        assertNotNull(settings)
-        assertTrue(settings!!.isVisible)
-        assertEquals(activity.getString(R.string.menu_settings), settings.title.toString())
-    }
-
     @Test
     fun mainIdle() {
-        val activity = launch()
+        val activity = launchCompose()
         // Status of LiveViewController once the stream is running.
-        activity.binding.statusText.text = activity.getString(R.string.status_connected)
-        settle()
+        activity.state = activity.state.copy(statusText = activity.getString(R.string.status_connected))
+        settleCompose()
 
-        val binding = activity.binding
-        assertToolbar(activity)
-        assertEquals(activity.getString(R.string.status_connected), binding.statusText.text.toString())
-        assertTrue(binding.btnTalk.isShown && binding.btnTalk.isEnabled)
-        assertTrue(binding.btnDoorOpen.isShown && binding.btnDoorOpen.isEnabled)
-        assertEquals(activity.getString(R.string.btn_talk_start), binding.btnTalk.contentDescription)
-        assertEquals(activity.getString(R.string.btn_door_open), binding.btnDoorOpen.contentDescription)
-        assertEquals("", binding.talkStatusText.text.toString())
-        assertFalse(binding.doorSlider.isVisible)
+        assertComposeHosted(activity)
+        assertTopBar(activity)
+        composeTestRule.onNodeWithTag(MainTestTags.STATUS_TEXT)
+            .assertTextEquals(activity.getString(R.string.status_connected))
+        composeTestRule.onNodeWithTag(MainTestTags.BTN_TALK).assertIsDisplayed().assertIsEnabled()
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_talk_start))
+        composeTestRule.onNodeWithTag(MainTestTags.BTN_DOOR_OPEN).assertIsDisplayed().assertIsEnabled()
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_door_open))
+        composeTestRule.onNodeWithTag(MainTestTags.TALK_STATUS_TEXT).assertTextEquals("")
+        composeTestRule.onNodeWithTag(MainTestTags.DOOR_SLIDER).assertDoesNotExist()
 
         capture(activity, "mainIdle_01_initial")
     }
 
     @Test
     fun mainTalking() {
-        val activity = launch()
-        activity.binding.statusText.text = activity.getString(R.string.status_connected)
+        val activity = launchCompose()
+        activity.state = activity.state.copy(statusText = activity.getString(R.string.status_connected))
         // As IntercomControls reports it: talking on, talk status from the Baichuan session.
-        activity.binding.btnTalk.showTalkState(true)
-        activity.binding.talkStatusText.text = activity.getString(R.string.status_talk_active)
-        settle()
+        activity.state = activity.state.copy(
+            talking = true,
+            talkStatusText = activity.getString(R.string.status_talk_active),
+        )
+        settleCompose()
 
-        val binding = activity.binding
-        assertToolbar(activity)
-        assertEquals(activity.getString(R.string.btn_talk_stop), binding.btnTalk.contentDescription)
-        assertTrue(binding.talkStatusText.isShown)
-        assertEquals(activity.getString(R.string.status_talk_active), binding.talkStatusText.text.toString())
-        assertFalse(binding.doorSlider.isVisible)
+        assertComposeHosted(activity)
+        assertTopBar(activity)
+        composeTestRule.onNodeWithTag(MainTestTags.BTN_TALK)
+            .assertContentDescriptionEquals(activity.getString(R.string.btn_talk_stop))
+        composeTestRule.onNodeWithTag(MainTestTags.TALK_STATUS_TEXT).assertIsDisplayed()
+            .assertTextEquals(activity.getString(R.string.status_talk_active))
+        composeTestRule.onNodeWithTag(MainTestTags.DOOR_SLIDER).assertDoesNotExist()
 
         capture(activity, "mainTalking_01_talkStatusShown")
     }
 
     @Test
     fun mainDoorSlider() {
-        val activity = launch()
-        activity.binding.statusText.text = activity.getString(R.string.status_connected)
+        val activity = launchCompose()
+        activity.state = activity.state.copy(statusText = activity.getString(R.string.status_connected))
         // Like tapping "Open door" in MainActivity.
-        activity.binding.doorSlider.toggle(
-            activity.getString(R.string.slide_to_open),
-            activity.getString(R.string.btn_door_open)
-        ) {}
-        settle()
+        activity.state = activity.state.copy(
+            doorConfirm = SlideConfirmRequest(
+                label = activity.getString(R.string.slide_to_open),
+                actionLabel = activity.getString(R.string.btn_door_open),
+                token = 1,
+            ),
+        )
+        settleCompose()
 
-        val binding = activity.binding
-        assertToolbar(activity)
-        assertTrue(binding.doorSlider.isShown)
-        assertTrue(binding.doorSlider.width > 0 && binding.doorSlider.height > 0)
-        assertEquals(activity.getString(R.string.slide_to_open), binding.doorSlider.contentDescription)
+        assertComposeHosted(activity)
+        assertTopBar(activity)
+        val slider = composeTestRule.onNodeWithTag(MainTestTags.DOOR_SLIDER).assertIsDisplayed()
+            .assertContentDescriptionEquals(activity.getString(R.string.slide_to_open))
+        val bounds = slider.getUnclippedBoundsInRoot()
+        assertTrue("slider not laid out", bounds.right > bounds.left && bounds.bottom > bounds.top)
 
         capture(activity, "mainDoorSlider_01_sliderShown")
     }

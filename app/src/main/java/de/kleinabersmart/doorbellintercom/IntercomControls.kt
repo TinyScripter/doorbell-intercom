@@ -3,7 +3,6 @@ package de.kleinabersmart.doorbellintercom
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.widget.ImageButton
 import androidx.core.content.ContextCompat
 import de.kleinabersmart.doorbellintercom.baichuan.BaichuanTalkSession
 
@@ -88,13 +87,4 @@ class IntercomControls(
         onStatus(context.getString(R.string.status_door_opening))
         DoorOpenClient.trigger(context, config.doorOpenUrl) { _, message -> onStatus(message) }
     }
-}
-
-/** Sprech-Button zeigt den Mikro-Zustand: heller Button = an, dunkler mit durchgestrichenem Mikrofon = aus. */
-fun ImageButton.showTalkState(talking: Boolean) {
-    setBackgroundResource(if (talking) R.drawable.bg_btn_mic_on else R.drawable.bg_btn_mic_off)
-    setImageResource(if (talking) R.drawable.ic_mic else R.drawable.ic_mic_off)
-    contentDescription = context.getString(
-        if (talking) R.string.btn_talk_stop else R.string.btn_talk_start
-    )
 }

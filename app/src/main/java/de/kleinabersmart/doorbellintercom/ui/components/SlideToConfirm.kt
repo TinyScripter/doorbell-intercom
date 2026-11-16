@@ -75,7 +75,7 @@ data class SlideConfirmRequest(val label: String, val actionLabel: String, val t
 
 /**
  * Tür-Button getippt: blendet den Slider mit [label] ein bzw. – ist er für dasselbe Label
- * schon sichtbar – wieder aus (zweiter Tap = abbrechen), wie SlideToConfirmView.toggle.
+ * schon sichtbar – wieder aus (zweiter Tap = abbrechen).
  */
 fun SlideConfirmRequest?.toggled(label: String, actionLabel: String): SlideConfirmRequest? =
     if (this?.label == label) null else SlideConfirmRequest(label, actionLabel, token = (this?.token ?: 0L) + 1)
@@ -190,7 +190,7 @@ private fun SlideTrack(
         val thumbDp = with(density) { thumbPx.toDp() }
         val maxOffset = (width - 2 * inset - thumbPx).coerceAtLeast(0f)
 
-        // Wie der View immer von links nach rechts, auch bei RTL (absolute Positionen).
+        // Immer von links nach rechts, auch bei RTL (absolute Positionen).
         Box(
             contentAlignment = AbsoluteAlignment.TopLeft,
             modifier = Modifier
@@ -205,7 +205,7 @@ private fun SlideTrack(
                         // Bricht ein laufendes Zurückschnappen ab.
                         scope.launch { offset.snapTo(startOffset) }
                         var current = startOffset
-                        // Ohne Touch-Slop: der Knopf folgt sofort, wie beim View.
+                        // Ohne Touch-Slop: der Knopf folgt dem Finger sofort.
                         val completed = horizontalDrag(down.id) { change ->
                             current = (startOffset + change.position.x - down.position.x).coerceIn(0f, maxOffset)
                             val target = current

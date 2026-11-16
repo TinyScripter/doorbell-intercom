@@ -21,17 +21,8 @@ fun View.applyTopSystemInset() {
     }
 }
 
-fun View.applyBottomSystemInset() {
-    val basePaddingBottom = paddingBottom
-    ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
-        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-        view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, basePaddingBottom + bars.bottom)
-        insets
-    }
-}
-
 /**
- * Wie applyBottomSystemInset, berücksichtigt aber zusätzlich die Tastatur
+ * Unterer Rand mit Navigationsleiste und zusätzlich der Tastatur
  * (IME): sonst überdeckt eine eingeblendete Tastatur Eingabefelder am Ende
  * eines scrollbaren Formulars, da windowSoftInputMode="adjustResize" allein
  * im Edge-to-Edge-Modus (ab targetSdk 35) nicht mehr zuverlässig greift.

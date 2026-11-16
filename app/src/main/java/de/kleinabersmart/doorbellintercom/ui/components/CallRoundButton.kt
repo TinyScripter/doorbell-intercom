@@ -130,7 +130,7 @@ fun ButtonLabel(text: String, modifier: Modifier = Modifier) {
 
 /**
  * Sprech-Button, zeigt den Mikro-Zustand: heller Button = an, dunkler mit durchgestrichenem
- * Mikrofon = aus. Ersetzt ImageButton.showTalkState.
+ * Mikrofon = aus.
  */
 @Composable
 fun TalkButton(

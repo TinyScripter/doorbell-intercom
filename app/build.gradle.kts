@@ -130,7 +130,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation(libs.androidx.constraintlayout)
 
     // Jetpack Compose für Anruf- und Hauptbildschirm; Versionen über die BOM.
     implementation(platform(libs.androidx.compose.bom))
