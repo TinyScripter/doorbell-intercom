@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
 }
 
 // Versionsschema: versionCode = major * 1000 + minor * 100 + patch * 10, die letzte Stelle
@@ -80,7 +81,9 @@ android {
     }
 
     buildFeatures {
+        // viewBinding bleibt für die Einstellungs-Bildschirme, Anruf- und Hauptbildschirm laufen in Compose.
         viewBinding = true
+        compose = true
     }
 
     androidResources {
@@ -128,6 +131,17 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
+
+    // Jetpack Compose für Anruf- und Hauptbildschirm; Versionen über die BOM.
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    debugImplementation(platform(libs.androidx.compose.bom))
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Direkter RTSP-Video-/Audiozugriff auf die Kamera – Googles offizielles
     // ExoPlayer-RTSP-Modul (offener Standard, kein Reverse-Engineering).
