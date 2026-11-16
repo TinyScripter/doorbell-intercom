@@ -40,11 +40,13 @@ fun AutoLinkText(
     val annotated = remember(text, linkColor) {
         linkifyWebUrls(text, TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)))
     }
+    // Zeilenmaße der TextView (Font-Padding, Zeilenhöhe), auch nach einem Umbruch in einer Adresse.
+    val textView = textViewTextStyle(14.sp)
     Text(
         text = annotated,
         color = viewTextColorSecondary(),
-        style = textViewStyle(14.sp),
-        modifier = modifier,
+        style = textView.style,
+        modifier = modifier.padding(textView.fontPadding),
     )
 }
 

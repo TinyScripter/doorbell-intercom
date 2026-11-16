@@ -167,7 +167,14 @@ private fun QrCodeDialog(bitmap: ImageBitmap, onDismiss: () -> Unit) {
         title = { Text(text = stringResource(R.string.title_qr_dialog)) },
         text = {
             Column {
-                Text(text = stringResource(R.string.message_qr_dialog))
+                // Laufweite und Umbruch wie die TextView des MaterialAlertDialog (MDC BodyMedium).
+                Text(
+                    text = stringResource(R.string.message_qr_dialog),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        letterSpacing = BodyMediumLetterSpacing,
+                        lineBreak = TextViewLineBreak,
+                    ),
+                )
                 QrCodeImage(
                     bitmap = bitmap,
                     contentDescription = stringResource(R.string.title_qr_dialog),

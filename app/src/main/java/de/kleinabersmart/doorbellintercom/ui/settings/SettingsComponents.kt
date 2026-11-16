@@ -102,7 +102,7 @@ private val ButtonMinWidth = 88.dp
 private val BodySmallLetterSpacing = 0.0333333333.em
 
 /** Laufweite von TextAppearance.Material3.BodyMedium (MDC), relativ zur Schriftgröße. */
-private val BodyMediumLetterSpacing = 0.0178571429.em
+internal val BodyMediumLetterSpacing = 0.0178571429.em
 
 /**
  * Zeilenumbruch wie bei TextView (BREAK_STRATEGY_HIGH_QUALITY ohne LineBreakConfig); ohne
