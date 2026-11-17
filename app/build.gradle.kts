@@ -5,7 +5,7 @@ plugins {
 
 // Versionsschema: versionCode = major * 1000 + minor * 100 + patch * 10, die letzte Stelle
 // bleibt frei für Nachbauten derselben Version. Minor und Patch daher jeweils höchstens 9.
-val appVersion = "1.0.1"
+val appVersion = "1.0.2"
 
 fun versionCodeOf(version: String): Int {
     val (major, minor, patch) = version.split(".").map(String::toInt)
